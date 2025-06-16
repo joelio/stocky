@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "stocky": {
+      "command": "python",
+      "args": [
+        "/path/to/stocky/stocky_mcp.py"
+      ],
+      "env": {
+        "PEXELS_API_KEY": "your_pexels_api_key_here",
+        "UNSPLASH_ACCESS_KEY": "your_unsplash_access_key_here"
+      }
+    }
+  }
+}
