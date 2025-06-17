@@ -41,7 +41,7 @@ class StockyDemo:
             # We know unsplash_key is not None here due to the if check
             self.providers["unsplash"] = lambda: UnsplashProvider(unsplash_key or "")
 
-        # Pixabay provider removed due to API issues
+
 
     def print_header(self, text: str):
         """Print a formatted header."""
@@ -340,9 +340,9 @@ async def interactive_menu():
 
         elif choice == "4":
             provider = input(
-                "Enter provider (default: pixabay): ").strip().lower()
+                "Enter provider (default: pexels): ").strip().lower()
             query = input("Enter search query (default: 'nature'): ").strip()
-            await demo.demo_pagination(provider or "pixabay", query or "nature")
+            await demo.demo_pagination(provider or "pexels", query or "nature")
 
         elif choice == "5":
             await demo.demo_error_handling()

@@ -38,7 +38,7 @@ setup(
             "stocky=stocky_mcp:main",
         ],
     },
-    keywords="mcp stock-images pexels unsplash pixabay royalty-free",
+    keywords="mcp stock-images pexels unsplash royalty-free",
     project_urls={
         "Bug Reports": "https://github.com/yourusername/stocky-mcp/issues",  # TODO: Customize this
         "Source": "https://github.com/yourusername/stocky-mcp",  # TODO: Customize this

@@ -10,7 +10,7 @@
 
 ## ✨ Features
 
-- 🔍 **Multi-Provider Search** - Search across Pexels, Unsplash, and Pixabay simultaneously
+- 🔍 **Multi-Provider Search** - Search across Pexels and Unsplash simultaneously
 - 📊 **Rich Metadata** - Get comprehensive image details including dimensions, photographer info, and licensing
 - 📄 **Pagination Support** - Browse through large result sets with ease
 - 🛡️ **Graceful Error Handling** - Robust error handling for API failures
@@ -38,7 +38,7 @@ You'll need free API keys from each provider:
 
 1. **Pexels** 📷 - Get your key at [pexels.com/api](https://www.pexels.com/api/)
 2. **Unsplash** 🌅 - Sign up at [unsplash.com/developers](https://unsplash.com/developers)
-3. **Pixabay** 🎨 - Register at [pixabay.com/api/docs](https://pixabay.com/api/docs/)
+
 
 ### Environment Configuration
 
@@ -51,7 +51,7 @@ cp .env.example .env
 ```env
 PEXELS_API_KEY=your_pexels_key_here
 UNSPLASH_ACCESS_KEY=your_unsplash_key_here
-PIXABAY_API_KEY=your_pixabay_key_here
+
 ```
 
 ### Running the Server
@@ -73,7 +73,7 @@ Add Stocky to your MCP client configuration:
       "env": {
         "PEXELS_API_KEY": "your_pexels_key",
         "UNSPLASH_ACCESS_KEY": "your_unsplash_key",
-        "PIXABAY_API_KEY": "your_pixabay_key"
+
       }
     }
   }
@@ -113,7 +113,7 @@ Search for royalty-free stock images across multiple providers.
 
 **Parameters:**
 - `query` (str, required) - Search terms for finding images
-- `providers` (list, optional) - List of providers to search: `["pexels", "unsplash", "pixabay"]`
+- `providers` (list, optional) - List of providers to search: `["pexels", "unsplash"]`
 - `per_page` (int, optional) - Results per page, max 50 (default: 20)
 - `page` (int, optional) - Page number for pagination (default: 1)
 - `sort_by` (str, optional) - Sort results by "relevance" or "newest"
@@ -135,7 +135,7 @@ All images returned by Stocky are free to use:
 
 - **Pexels** ✅ - Free for commercial and personal use, no attribution required
 - **Unsplash** ✅ - Free under the Unsplash License
-- **Pixabay** ✅ - Free for commercial use, no attribution required
+
 
 Always check the specific license for each image before use in production.
 
@@ -151,7 +151,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## 🙏 Acknowledgments
 
-- Thanks to [Pexels](https://www.pexels.com), [Unsplash](https://unsplash.com), and [Pixabay](https://pixabay.com) for providing free APIs
+- Thanks to [Pexels](https://www.pexels.com) and [Unsplash](https://unsplash.com) for providing free APIs
 - Built with the [Model Context Protocol](https://github.com/modelcontextprotocol)
 - Created with ❤️ for the developer community
 
@@ -179,7 +179,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 Each provider has different rate limits:
 - **Pexels**: 200 requests per hour
 - **Unsplash**: 50 requests per hour (demo), 5000 per hour (production)
-- **Pixabay**: 5000 requests per hour
+
 
 ---
 

@@ -3,8 +3,7 @@
 Stocky MCP Server - A friendly MCP server for searching royalty-free stock
 images.
 
-This server provides tools to search for stock images from Pexels, Unsplash,
-and Pixabay.
+This server provides tools to search for stock images from Pexels and Unsplash.
 """
 import logging
 import os
@@ -561,8 +560,7 @@ get_image_details("unsplash_abc123")
    - API Key: UNSPLASH_ACCESS_KEY
    - License: Unsplash License
 
-3. **Pixabay** - Stunning free images
-   - API Key: PIXABAY_API_KEY
+
    - License: Free for commercial use, no attribution required
 
 ## Setup
@@ -570,13 +568,13 @@ get_image_details("unsplash_abc123")
 1. Get API keys from:
    - Pexels: https://www.pexels.com/api/
    - Unsplash: https://unsplash.com/developers
-   - Pixabay: https://pixabay.com/api/docs/
+
 
 2. Set environment variables:
    ```bash
    export PEXELS_API_KEY="your_key"
    export UNSPLASH_ACCESS_KEY="your_key"
-   export PIXABAY_API_KEY="your_key"
+
    ```
 
 3. Run the server:
