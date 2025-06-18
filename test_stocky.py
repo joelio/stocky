@@ -83,8 +83,7 @@ class StockyTests:
                 results = await provider.search("nature", per_page=1)
                 if results:
                     self.add_result(
-                        "Pexels API connection", True, f"Found {
-                            len(results)} result(s)")
+                        "Pexels API connection", True, f"Found {len(results)} result(s)")
 
                     # Test getting details
                     if results[0].id:

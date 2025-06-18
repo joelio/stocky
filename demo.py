@@ -82,10 +82,7 @@ class StockyDemo:
                     if results:
                         print(f"   ✅ Found {len(results)} images")
                         for i, image in enumerate(results, 1):
-                            print(
-                                f"   {i}. {
-                                    image.title or 'Untitled'} (ID: {
-                                    image.id})")
+                            print(f"   {i}. {image.title or 'Untitled'} (ID: {image.id})")
                     else:
                         print(f"   ⚠️  No results found")
 
