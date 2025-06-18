@@ -9,12 +9,15 @@ import logging
 import os
 import sys
 import urllib.parse
+import base64
+import pycurl
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
 from abc import ABC, abstractmethod
-
-import aiohttp
-from dotenv import load_dotenv
+from pathlib import Path
+import io
+import json
+# Environment variables are handled by the MCP client
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -22,8 +25,6 @@ except ImportError:
     print("Error: MCP package not found. Please install it with: "
           "pip install mcp")
     sys.exit(1)
-
-# Load environment variables will be done in main()
 
 # Configure logging
 logging.basicConfig(
@@ -62,28 +63,28 @@ class StockImageProvider(ABC):
     def __init__(self, api_key: str):
         """Initialize provider with API key."""
         self.api_key = api_key
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session = None
 
     @abstractmethod
-    async def search(self, query: str, per_page: int = 20, page: int = 1,
-                     **kwargs) -> List[ImageResult]:
+    def search(self, query: str, per_page: int = 20, page: int = 1,
+               **kwargs) -> List[ImageResult]:
         """Search for images."""
         pass
 
     @abstractmethod
-    async def get_details(self, image_id: str) -> Optional[ImageResult]:
+    def get_details(self, image_id: str) -> Optional[ImageResult]:
         """Get detailed information about a specific image."""
         pass
 
-    async def __aenter__(self):
+    def __enter__(self):
         """Create HTTP session on context manager entry."""
-        self.session = aiohttp.ClientSession()
+        # Using pycurl for HTTP requests
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         """Close HTTP session on context manager exit."""
         if self.session:
-            await self.session.close()
+            self.session.close()
 
 
 class PexelsProvider(StockImageProvider):
@@ -98,13 +99,22 @@ class PexelsProvider(StockImageProvider):
                 "You can get a free API key at: https://www.pexels.com/api/"
             )
         super().__init__(api_key)
+        
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.session = True  # Just a placeholder to indicate session is active
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        self.session = None
 
-    async def search(self, query: str, per_page: int = 20, page: int = 1,
-                     **kwargs) -> List[ImageResult]:
+    def search(self, query: str, per_page: int = 20, page: int = 1,
+               **kwargs) -> List[ImageResult]:
         """Search Pexels for images."""
         if not self.session:
             raise RuntimeError(
-                "Provider must be used within async context manager"
+                "Provider must be used within context manager"
             )
 
         url = "https://api.pexels.com/v1/search"
@@ -116,58 +126,41 @@ class PexelsProvider(StockImageProvider):
         }
 
         try:
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
+            # Use pycurl to make the request
+            buffer = io.BytesIO()
+            c = pycurl.Curl()
 
-                results = []
-                for photo in data.get("photos", []):
-                    # Create attribution URL for Pexels
-                    attribution_url = f"https://www.pexels.com/photo/{photo['id']}" 
-                    
-                    results.append(ImageResult(
-                        id=f"pexels_{photo['id']}",
-                        title=photo.get(
-                            "alt", f"Photo by {photo['photographer']}"
-                        ),
-                        description=photo.get("alt", ""),
-                        url=photo["src"]["large"],
-                        thumbnail=photo["src"]["medium"],
-                        width=photo["width"],
-                        height=photo["height"],
-                        photographer=photo["photographer"],
-                        photographer_url=photo["photographer_url"],
-                        source="Pexels",
-                        license="Free to use, attribution appreciated",
-                        attribution_url=attribution_url,
-                        tags=[photo.get("alt", "").lower()]
-                        if photo.get("alt") else []
-                    ))
-                return results
-        except aiohttp.ClientError as e:
+            # Build URL with parameters
+            query_string = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query_string}"
+
+            c.setopt(pycurl.URL, full_url)
+            c.setopt(pycurl.WRITEDATA, buffer)
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            c.setopt(pycurl.HTTPHEADER, header_list)
+            c.perform()
+
+            # Check status code
+            status_code = c.getinfo(pycurl.HTTP_CODE)
+            if status_code != 200:
+                logger.error(f"Pexels API error: HTTP status {status_code}")
+                return []
+
+            c.close()
+
+            # Parse JSON response
+            response_data = buffer.getvalue().decode('utf-8')
+            data = json.loads(response_data)
+        except (pycurl.error, json.JSONDecodeError) as e:
             logger.error(f"Pexels API error: {e}")
             return []
 
-    async def get_details(self, image_id: str) -> Optional[ImageResult]:
-        """Get details for a specific Pexels image."""
-        if not self.session:
-            raise RuntimeError(
-                "Provider must be used within async context manager"
-            )
+            results = []
+            for photo in data.get("photos", []):
+                # Create attribution URL for Pexels
+                # Using the photographer URL as attribution
 
-        # Extract numeric ID from our prefixed ID
-        numeric_id = image_id.replace("pexels_", "")
-        headers = {"Authorization": self.api_key}
-        url = f"https://api.pexels.com/v1/photos/{numeric_id}"
-
-        try:
-            async with self.session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                photo = await response.json()
-
-                return ImageResult(
+                results.append(ImageResult(
                     id=f"pexels_{photo['id']}",
                     title=photo.get(
                         "alt", f"Photo by {photo['photographer']}"
@@ -183,8 +176,65 @@ class PexelsProvider(StockImageProvider):
                     license="Free to use, attribution appreciated",
                     tags=[photo.get("alt", "").lower()]
                     if photo.get("alt") else []
-                )
-        except aiohttp.ClientError as e:
+                ))
+        except pycurl.error as e:
+            logger.error(f"Pexels API error: {e}")
+            return []
+            
+    def get_details(self, image_id: str) -> Optional[ImageResult]:  # noqa: E501
+        """Get details for a specific Pexels image."""
+        if not self.session:
+            raise RuntimeError(
+                "Provider must be used within context manager"
+            )
+
+        # Extract ID from our prefixed ID
+        pexels_id = image_id.replace("pexels_", "")
+        url = f"https://api.pexels.com/v1/photos/{pexels_id}"
+        headers = {"Authorization": self.api_key}
+
+        try:
+            # Use pycurl to make the request
+            buffer = io.BytesIO()
+            c = pycurl.Curl()
+            
+            c.setopt(pycurl.URL, url)
+            c.setopt(pycurl.WRITEDATA, buffer)
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            c.setopt(pycurl.HTTPHEADER, header_list)
+            c.perform()
+            
+            # Check status code
+            status_code = c.getinfo(pycurl.HTTP_CODE)
+            if status_code != 200:
+                logger.error(f"Pexels API error: HTTP status {status_code}")
+                return None
+                
+            c.close()
+            
+            # Parse JSON response
+            response_data = buffer.getvalue().decode('utf-8')
+            photo = json.loads(response_data)
+            
+            # Create attribution URL for Pexels
+            attribution_url = photo["url"]
+            
+            return ImageResult(
+                id=f"pexels_{photo['id']}",
+                title=photo.get("alt", f"Photo by {photo['photographer']}"),
+                description=photo.get("alt", ""),
+                url=photo["src"]["large"],
+                thumbnail=photo["src"]["medium"],
+                width=photo["width"],
+                height=photo["height"],
+                photographer=photo["photographer"],
+                photographer_url=photo["photographer_url"],
+                source="Pexels",
+                license="Free to use, attribution appreciated",
+                attribution_url=attribution_url,
+                tags=[photo.get("alt", "").lower()] if photo.get("alt") else []
+            )
+        except pycurl.error as e:
             logger.error(f"Pexels API error: {e}")
             return None
 
@@ -205,6 +255,15 @@ class UnsplashProvider(StockImageProvider):
                 "https://unsplash.com/developers"
             )
         super().__init__(api_key)
+        
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.session = True  # Just a placeholder to indicate session is active
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        self.session = None
 
     async def search(self, query: str, per_page: int = 20, page: int = 1,
                      **kwargs) -> List[ImageResult]:
@@ -223,34 +282,57 @@ class UnsplashProvider(StockImageProvider):
         }
 
         try:
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
+            # Use pycurl to make the request
+            buffer = io.BytesIO()
+            c = pycurl.Curl()
+            
+            # Build URL with parameters
+            query_string = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query_string}"
+            
+            c.setopt(pycurl.URL, full_url)
+            c.setopt(pycurl.WRITEDATA, buffer)
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            c.setopt(pycurl.HTTPHEADER, header_list)
+            c.perform()
+            
+            # Check status code
+            status_code = c.getinfo(pycurl.HTTP_CODE)
+            if status_code != 200:
+                logger.error(f"Unsplash API error: HTTP status {status_code}")
+                return []
+                
+            c.close()
+            
+            # Parse JSON response
+            response_data = buffer.getvalue().decode('utf-8')
+            data = json.loads(response_data)
 
-                results = []
-                for photo in data.get("results", []):
-                    # Create attribution URL for Unsplash
-                    attribution_url = f"https://unsplash.com/photos/{photo['id']}"
-                    
-                    results.append(ImageResult(
-                        id=f"unsplash_{photo['id']}",
-                        title=photo.get("description", "Untitled") or "Untitled",
-                        description=photo.get("alt_description", ""),
-                        url=photo["urls"]["regular"],
-                        thumbnail=photo["urls"]["small"],
-                        width=photo["width"],
-                        height=photo["height"],
-                        photographer=photo["user"]["name"],
-                        photographer_url=photo["user"]["links"]["html"],
-                        source="Unsplash",
-                        license="Free to use under Unsplash License",
-                        attribution_url=attribution_url,
-                        tags=[tag["title"] for tag in photo.get("tags", [])]
-                    ))
-                return results
-        except aiohttp.ClientError as e:
+            results = []
+            for photo in data.get("results", []):
+                # Create attribution URL for Unsplash
+                attribution_url = (
+                    f"https://unsplash.com/photos/{photo['id']}"
+                )
+
+                results.append(ImageResult(
+                    id=f"unsplash_{photo['id']}",
+                    title=(photo.get("description", "Untitled")
+                           or "Untitled"),
+                    description=photo.get("alt_description", ""),
+                    url=photo["urls"]["regular"],
+                    thumbnail=photo["urls"]["small"],
+                    width=photo["width"],
+                    height=photo["height"],
+                    photographer=photo["user"]["name"],
+                    photographer_url=photo["user"]["links"]["html"],
+                    source="Unsplash",
+                    license="Free to use under Unsplash License",
+                    attribution_url=attribution_url,
+                    tags=[tag["title"] for tag in photo.get("tags", [])]
+                ))
+            return results
+        except pycurl.error as e:
             logger.error(f"Unsplash API error: {e}")
             return []
 
@@ -267,29 +349,50 @@ class UnsplashProvider(StockImageProvider):
         headers = {"Authorization": f"Client-ID {self.api_key}"}
 
         try:
-            async with self.session.get(
-                url, headers=headers
-            ) as response:
-                response.raise_for_status()
-                photo = await response.json()
+            # Use pycurl to make the request
+            buffer = io.BytesIO()
+            c = pycurl.Curl()
+            
+            c.setopt(pycurl.URL, url)
+            c.setopt(pycurl.WRITEDATA, buffer)
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            c.setopt(pycurl.HTTPHEADER, header_list)
+            c.perform()
+            
+            # Check status code
+            status_code = c.getinfo(pycurl.HTTP_CODE)
+            if status_code != 200:
+                logger.error(f"Unsplash API error: HTTP status {status_code}")
+                return None
+                
+            c.close()
+            
+            # Parse JSON response
+            response_data = buffer.getvalue().decode('utf-8')
+            photo = json.loads(response_data)
 
-                return ImageResult(
-                    id=f"unsplash_{photo['id']}",
-                    title=(photo.get("description") or
-                           photo.get("alt_description") or
-                           f"Photo by {photo['user']['name']}"),
-                    description=photo.get("description", ""),
-                    url=photo["urls"]["full"],
-                    thumbnail=photo["urls"]["regular"],
-                    width=photo["width"],
-                    height=photo["height"],
-                    photographer=photo["user"]["name"],
-                    photographer_url=photo["user"]["links"]["html"],
-                    source="Unsplash",
-                    license="Free to use under Unsplash License",
-                    tags=[tag["title"] for tag in photo.get("tags", [])]
-                )
-        except aiohttp.ClientError as e:
+            attribution_url = (
+                f"https://unsplash.com/photos/{photo['id']}"
+            )
+
+            return ImageResult(
+                id=f"unsplash_{photo['id']}",
+                title=(photo.get("description") or
+                       photo.get("alt_description") or
+                       f"Photo by {photo['user']['name']}"),
+                description=photo.get("description", ""),
+                url=photo["urls"]["full"],
+                thumbnail=photo["urls"]["regular"],
+                width=photo["width"],
+                height=photo["height"],
+                photographer=photo["user"]["name"],
+                photographer_url=photo["user"]["links"]["html"],
+                source="Unsplash",
+                license="Free to use under Unsplash License",
+                attribution_url=attribution_url,
+                tags=[tag["title"] for tag in photo.get("tags", [])]
+            )
+        except pycurl.error as e:
             logger.error(f"Unsplash API error: {e}")
             return None
 
@@ -300,9 +403,11 @@ class StockImageManager:
     def __init__(self):
         """Initialize manager with configured providers."""
         self.providers: Dict[str, StockImageProvider] = {}
-        
+
         # Check if attribution links are enabled
-        attribution_links = os.getenv("ENABLE_ATTRIBUTION_LINKS", "false").lower() == "true"
+        attribution_links = (
+            os.getenv("ENABLE_ATTRIBUTION_LINKS", "false").lower() == "true"
+        )
         self.enable_attribution = attribution_links
 
         # Initialize Pexels if API key is available
@@ -317,7 +422,8 @@ class StockImageManager:
 
     async def search(self, query: str, providers: Optional[List[str]] = None,
                      per_page: int = 20, page: int = 1, sort: str = "relevant",
-                     include_attribution: Optional[bool] = None, **kwargs) -> Dict[str, Any]:
+                     include_attribution: Optional[bool] = None,
+                     **kwargs) -> Dict[str, Any]:
         """
         Search for images across specified providers.
 
@@ -332,7 +438,7 @@ class StockImageManager:
 
         Returns:
             Dictionary with search results and metadata
-            
+
         Note:
             If ENABLE_ATTRIBUTION_LINKS=true is set in the environment,
             results will include attribution URLs for proper crediting.
@@ -362,11 +468,11 @@ class StockImageManager:
                     "Please check your configuration."
                 )
             }
-            
+
         # Determine if attribution links should be included
         # Priority: 1) Explicit parameter, 2) Environment variable setting
         show_attribution = include_attribution if include_attribution is not None else self.enable_attribution
-            
+
         results = {}
         for provider_name in available_providers:
             try:
@@ -375,12 +481,13 @@ class StockImageManager:
                     provider_results = await provider.search(
                         query, per_page, page
                     )
-                    
-                    # If attribution is disabled, set attribution_url to None for each result
+
+                    # If attribution is disabled, set attribution_url
+                    # to None for each result
                     if not show_attribution:
                         for result in provider_results:
                             result.attribution_url = None
-                            
+
                     results[provider_name] = provider_results
             except Exception as e:
                 logger.error(f"Error searching {provider_name}: {e}")
@@ -394,7 +501,8 @@ class StockImageManager:
             "results": results
         }
 
-    async def get_image_details(self, image_id: str, include_attribution: Optional[bool] = None) -> Dict[str, Any]:
+    async def get_image_details(
+            self, image_id: str, include_attribution: Optional[bool] = None) -> Dict[str, Any]:  # noqa: E501
         """
         Get detailed information about a specific image.
 
@@ -434,6 +542,143 @@ class StockImageManager:
         except Exception as e:
             logger.error(f"Error getting image details: {e}")
             return {"error": str(e)}
+
+    async def download_image(self,
+                             image_id: str,
+                             size: str = "original",
+                             output_path: Optional[str] = None) -> Dict[str,
+                                                                        Any]:
+        """
+        Download an image to local storage or return base64 encoded data.
+
+        Args:
+            image_id: Image ID in format provider_id (e.g., pexels_123456)
+            size: Image size variant to download
+                 Options: thumbnail, small, medium, large, original
+            output_path: Optional path to save the image locally
+
+        Returns:
+            Dictionary with download information or error
+        """
+        # Validate size parameter
+        valid_sizes = ["thumbnail", "small", "medium", "large", "original"]
+        if size not in valid_sizes:
+            return {
+                "error": (f"Invalid size: {size}. Valid options: "
+                          f"{', '.join(valid_sizes)}")
+            }
+
+        # Get image details first to obtain URLs
+        image_details = await self.get_image_details(image_id)
+        if "error" in image_details:
+            return image_details
+
+        # Determine which URL to use based on size
+        image_url = None
+        if "pexels_" in image_id:
+            # Map size to Pexels URL
+            if size == "thumbnail":
+                image_url = image_details.get("thumbnail")
+            elif size == "small":
+                # Pexels doesn't have small
+                image_url = image_details.get("thumbnail")
+            elif size == "medium":
+                # This is medium/large in Pexels
+                image_url = image_details.get("url")
+            elif size == "large":
+                # This is medium/large in Pexels
+                image_url = image_details.get("url")
+            else:  # original
+                # For Pexels, we need to modify the URL to get original size
+                url = image_details.get("url", "")
+                # Remove size constraints
+                image_url = url.replace("?h=650&w=940", "")
+        elif "unsplash_" in image_id:
+            # Map size to Unsplash URL
+            if size == "thumbnail":
+                image_url = image_details.get("thumbnail")
+            elif size == "small":
+                # Use thumbnail for small
+                image_url = image_details.get("thumbnail")
+            elif size == "medium":
+                # This is regular size in Unsplash
+                image_url = image_details.get("url")
+            elif size == "large":
+                # This is regular size in Unsplash
+                image_url = image_details.get("url")
+            else:  # original
+                # For Unsplash, the full URL is already in the details
+                image_url = image_details.get("url")
+
+        if not image_url:
+            return {"error": "Could not determine image URL for download"}
+
+        try:
+            # Use pycurl to download the image
+            buffer = io.BytesIO()
+            c = pycurl.Curl()
+            c.setopt(c.URL, image_url)
+            c.setopt(c.WRITEDATA, buffer)
+            c.setopt(c.FOLLOWLOCATION, True)
+            c.perform()
+
+            # Get the content type and status code
+            status_code = c.getinfo(pycurl.HTTP_CODE)
+            content_type = c.getinfo(pycurl.CONTENT_TYPE) or "image/jpeg"
+            c.close()
+
+            if status_code != 200:
+                return {
+                    "error": f"Failed to download image: HTTP status {status_code}"}  # noqa: E501
+
+            # Get the image data
+            image_data = buffer.getvalue()
+
+            # Get file extension from content type
+            extension = content_type.split("/")[-1]
+            if extension not in ["jpeg", "jpg", "png", "gif", "webp"]:
+                extension = "jpg"  # Default to jpg if unknown
+
+            # If output path is provided, save the image to disk
+            if output_path:
+                # Create directory if it doesn't exist
+                output_path_obj = Path(output_path)
+                output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+                # If no extension in output_path, add it
+                if not output_path_obj.suffix:
+                    output_path = f"{output_path}.{extension}"
+
+                # Write the image to disk
+                with open(output_path, "wb") as f:
+                    f.write(image_data)
+
+                return {
+                    "success": True,
+                    "message": f"Image downloaded successfully to {output_path}",  # noqa: E501
+                    "path": output_path,
+                    "size": len(image_data),
+                    "content_type": content_type}
+            else:
+                # Return base64 encoded image data
+                encoded_data = base64.b64encode(image_data).decode("utf-8")
+                return {
+                    "success": True,
+                    "message": "Image data retrieved successfully",
+                    "data": encoded_data,
+                    "size": len(image_data),
+                    "content_type": content_type,
+                    "encoding": "base64"
+                }
+        except pycurl.error as e:
+            logger.error(f"Error downloading image: {e}")
+            return {"error": f"Failed to download image: {str(e)}"}
+        except IOError as e:
+            logger.error(f"Error saving image to disk: {e}")
+            return {"error": f"Failed to save image: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error during image download: {e}")
+            return {"error": f"Unexpected error: {str(e)}"}
 
 
 class StockyServer:
@@ -479,21 +724,23 @@ class StockyServer:
                 providers = list(self.manager.providers.keys())
 
             all_results = []
-            
-            # Pass the include_attribution parameter to the manager's search method
+
+            # Pass the include_attribution parameter to the manager's search
+            # method
             results_dict = await self.manager.search(
                 query, providers, per_page, page, sort_by, include_attribution)
-                
+
             # Convert results to the expected format
             if "results" in results_dict:
                 for provider, images in results_dict["results"].items():
                     for image in images:
                         all_results.append(asdict(image))
-            
+
             return all_results
 
         @self.mcp.tool()
-        async def get_image_details(image_id: str, include_attribution: Optional[bool] = None) -> Optional[Dict[str, Any]]:
+        async def get_image_details(
+                image_id: str, include_attribution: Optional[bool] = None) -> Optional[Dict[str, Any]]:  # noqa: E501
             """
             Get detailed information about a specific image.
 
@@ -506,7 +753,26 @@ class StockyServer:
             Returns:
                 Detailed image information or None if not found
             """
-            return await self.manager.get_image_details(image_id, include_attribution)
+            return await self.manager.get_image_details(image_id, include_attribution)  # noqa: E501
+
+        @self.mcp.tool()
+        async def download_image(image_id: str,
+                                 size: str = "original",
+                                 output_path: Optional[str] = None) -> Dict[str,  # noqa: E501
+                                                                            Any]:  # noqa: E501
+            """
+            Download an image to local storage or return base64 encoded data.
+
+            Args:
+                image_id: Image ID in format provider_id (e.g., pexels_123456)
+                size: Image size variant to download
+                     Options: thumbnail, small, medium, large, original
+                output_path: Optional path to save the image locally
+
+            Returns:
+                Path to downloaded file or base64 data
+            """
+            return await self.manager.download_image(image_id, size, output_path)  # noqa: E501
 
     def _setup_resources(self):
         """Set up MCP resources."""
@@ -548,6 +814,23 @@ Parameters:
 Example:
 ```
 get_image_details("unsplash_abc123")
+```
+
+### download_image
+Download an image to local storage or get base64 encoded data.
+
+Parameters:
+- image_id (required): Image ID in format 'provider_id'
+  (e.g., 'pexels_123456')
+- size (optional): Image size variant to download
+  Options: thumbnail, small, medium, large, original
+  Default: original
+- output_path (optional): Path to save the image locally
+  If not provided, returns base64 encoded image data
+
+Example:
+```
+download_image("pexels_123456", size="medium", output_path="/path/to/save.jpg")
 ```
 
 ## Providers
@@ -600,10 +883,6 @@ Happy searching! 📸
 
 def main():
     """Main entry point for the MCP server."""
-    # Load environment variables from .env file
-    from dotenv import load_dotenv
-    load_dotenv()
-
     server = StockyServer()
     server.mcp.run()
 

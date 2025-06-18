@@ -1,4 +1,4 @@
-# <div align="center">![Stocky Logo](logo.svg)<br/>Stocky<br/>*Find beautiful royalty-free stock images* 📸</div>
+# <div align="center">![Stocky Logo](STOCKY.png)<br/>Stocky<br/>*Find beautiful royalty-free stock images* 📸</div>
 
 <div align="center">
 
@@ -16,6 +16,16 @@
 - 🛡️ **Graceful Error Handling** - Robust error handling for API failures
 - ⚡ **Async Performance** - Lightning-fast concurrent API calls
 - 🎯 **Provider Flexibility** - Search specific providers or all at once
+
+![Photography Example](images/photography-example1.jpg)
+
+**Beautiful stock photography at your fingertips**  
+Example image used for demonstration purposes
+
+![Mountain Landscape](images/landscape-mountains.jpg)
+*Stunning landscapes available through multiple providers*
+
+Photo by [Simon Berger](https://unsplash.com/@simon_berger) on [Unsplash](https://unsplash.com/photos/twukN12EN7c)
 
 ## 🚀 Quick Start
 
@@ -82,6 +92,11 @@ Add Stocky to your MCP client configuration:
 
 ## 📖 Usage Examples
 
+<div align="center">
+<img src="images/photography-example2.jpg" alt="Stock Photography Example" width="600">
+<p><em>Find the perfect image for your project</em></p>
+</div>
+
 ### Searching for Images
 
 Search across all providers:
@@ -103,6 +118,23 @@ results = await search_stock_images(
 
 ```python
 details = await get_image_details("unsplash_abc123xyz")
+```
+
+### Downloading Images
+
+```python
+# Download and save to disk
+result = await download_image(
+    image_id="pexels_123456", 
+    size="medium", 
+    output_path="/path/to/save.jpg"
+)
+
+# Get base64-encoded image data
+result = await download_image(
+    image_id="unsplash_abc123", 
+    size="original"
+)
 ```
 
 ## 🛠️ Tools Documentation
@@ -129,7 +161,25 @@ Get detailed information about a specific image.
 
 **Returns:** Detailed image information including full metadata
 
+### `download_image`
+
+Download an image to local storage or get base64 encoded data.
+
+**Parameters:**
+- `image_id` (str, required) - Image ID in format `provider_id` (e.g., `pexels_123456`)
+- `size` (str, optional) - Image size variant to download (default: "original")
+  - Options: thumbnail, small, medium, large, original
+- `output_path` (str, optional) - Path to save the image locally
+  - If not provided, returns base64 encoded image data
+
+**Returns:** Dictionary with download information or error
+
 ## 📄 License Information
+
+<div align="center">
+<img src="images/photography-example3.jpg" alt="License Information" width="600">
+<p><em>Royalty-free images for your creative projects</em></p>
+</div>
 
 All images returned by Stocky are free to use:
 
