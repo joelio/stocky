@@ -50,25 +50,13 @@ You'll need free API keys from each provider:
 2. **Unsplash** 🌅 - Sign up at [unsplash.com/developers](https://unsplash.com/developers)
 
 
-### Environment Configuration
+### API Key Configuration
 
-1. Copy the example environment file:
-```bash
-cp .env.example .env
-```
+You'll need to configure your API keys when setting up the MCP server. These keys are used to authenticate with the stock image providers.
 
-2. Add your API keys to `.env`:
-```env
-PEXELS_API_KEY=your_pexels_key_here
-UNSPLASH_ACCESS_KEY=your_unsplash_key_here
+### Running as an MCP Server
 
-```
-
-### Running the Server
-
-```bash
-python stocky_mcp.py
-```
+Stocky is designed to be run as an MCP (Model Context Protocol) server, not as a standalone application. It should be configured in your MCP client configuration.
 
 ## 🔧 MCP Client Configuration
 
