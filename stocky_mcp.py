@@ -653,7 +653,7 @@ class StockImageManager:
                 # Write the image to disk
                 abs_path = str(Path(output_path).resolve())
                 logger.info(f"Saving image to: {abs_path}")
-                with open(output_path, "wb") as f:
+                with open(abs_path, "wb") as f:
                     f.write(image_data)
 
                 return {
