@@ -614,6 +614,7 @@ class StockImageManager:
             return {"error": "Could not determine image URL for download"}
 
         try:
+            logger.info(f"Stocky MCP server CWD at download: {os.getcwd()}")
             # Use pycurl to download the image
             buffer = io.BytesIO()
             c = pycurl.Curl()
@@ -650,13 +651,15 @@ class StockImageManager:
                     output_path = f"{output_path}.{extension}"
 
                 # Write the image to disk
-                with open(output_path, "wb") as f:
+                abs_path = str(Path(output_path).resolve())
+                logger.info(f"Saving image to: {abs_path}")
+                with open(abs_path, "wb") as f:
                     f.write(image_data)
 
                 return {
                     "success": True,
-                    "message": f"Image downloaded successfully to {output_path}",  # noqa: E501
-                    "path": output_path,
+                    "message": f"Image downloaded successfully to {abs_path}",  # noqa: E501
+                    "path": abs_path,
                     "size": len(image_data),
                     "content_type": content_type}
             else:
@@ -736,7 +739,13 @@ class StockyServer:
                     for image in images:
                         all_results.append(asdict(image))
 
-            return all_results
+            return {
+                "results": all_results,
+                "total_results": len(all_results),
+                "query": query,
+                "page": page,
+                "per_page": per_page
+            }
 
         @self.mcp.tool()
         async def get_image_details(
@@ -767,10 +776,18 @@ class StockyServer:
                 image_id: Image ID in format provider_id (e.g., pexels_123456)
                 size: Image size variant to download
                      Options: thumbnail, small, medium, large, original
-                output_path: Optional path to save the image locally
+                output_path: Optional path to save the image locally.
+                    NOTE: If a relative path is provided, it will be resolved
+                    from the Stocky MCP server's current working directory,
+                    which may not be the project directory. To ensure the file
+                    is saved in a specific location, use an absolute path
+                    (e.g., /home/matt/Dev/stocky/downloads/image.jpg).
 
             Returns:
                 Path to downloaded file or base64 data
+
+            Example:
+                download_image("pexels_123456", size="medium", output_path="/absolute/path/to/save.jpg")
             """
             return await self.manager.download_image(image_id, size, output_path)  # noqa: E501
 
