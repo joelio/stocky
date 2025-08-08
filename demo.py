@@ -89,8 +89,8 @@ class StockyDemo:
             except ValueError as e:
                 print(f"   ❌ Error: {e}")
                 print(
-                    f"      Please set {
-                        provider_name.upper()}_API_KEY in your .env file")
+                    (f"      Please set "
+                     f"{provider_name.upper()}_API_KEY in your .env file")
             except Exception as e:
                 print(f"   ❌ Unexpected error: {e}")
 
