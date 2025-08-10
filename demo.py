@@ -89,8 +89,7 @@ class StockyDemo:
             except ValueError as e:
                 print(f"   ❌ Error: {e}")
                 print(
-                    f"      Please set {
-                        provider_name.upper()}_API_KEY in your .env file")
+                    f"      Please set {provider_name.upper()}_API_KEY in your .env file")  
             except Exception as e:
                 print(f"   ❌ Unexpected error: {e}")
 
@@ -101,16 +100,11 @@ class StockyDemo:
             provider_name: str = "pexels",
             query: str = "coffee"):
         """Demo searching a specific provider."""
-        self.print_header(
-            f"Searching {
-                provider_name.capitalize()} for: '{query}'")
+        self.print_header(f"Searching {provider_name.capitalize()} for: '{query}'")
 
         if provider_name not in self.providers:
             print(f"❌ Unknown provider: {provider_name}")
-            print(
-                f"   Available providers: {
-                    ', '.join(
-                        self.providers.keys())}")
+            print(f"   Available providers: {', '.join(self.providers.keys())}")
             return []
 
         try:
@@ -165,9 +159,7 @@ class StockyDemo:
             provider_name: str = "pexels",
             query: str = "nature"):
         """Demo pagination functionality."""
-        self.print_header(
-            f"Demonstrating pagination with {
-                provider_name.capitalize()}")
+        self.print_header(f"Demonstrating pagination with {provider_name.capitalize()}")
 
         if provider_name not in self.providers:
             print(f"❌ Unknown provider: {provider_name}")
@@ -248,16 +240,12 @@ class StockyDemo:
         for provider_name, provider_class in self.providers.items():
             query = provider_queries.get(provider_name, default_query)
             try:
-                print(
-                    f"\n🔍 Trying {
-                        provider_name.capitalize()} with query: '{query}'")
+                print(f"\n🔍 Trying {provider_name.capitalize()} with query: '{query}'")
                 async with provider_class() as provider:
                     results = await provider.search(query, per_page=2)
 
                     if results:
-                        print(
-                            f"  ✅ Sample JSON output from {
-                                provider_name.capitalize()}:")
+                        print(f"  ✅ Sample JSON output from {provider_name.capitalize()}:")
 
                         # Convert to dict format (as would be returned by MCP)
                         json_result = {
