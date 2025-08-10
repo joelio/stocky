@@ -136,8 +136,8 @@ class StockyTests:
                 results = await provider.search("nature", per_page=1)
                 if results:
                     self.add_result(
-                        "Unsplash API connection", True, (f"Found "
-                            f"{len(results)} result(s)")
+                        "Unsplash API connection", True, ("Found "  
+                            f"{len(results)} result(s)")  
 
                     # Test getting details
                     if results[0].id:
