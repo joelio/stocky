@@ -240,9 +240,7 @@ class StockyDemo:
         for provider_name, provider_class in self.providers.items():
             query = provider_queries.get(provider_name, default_query)
             try:
-                print(
-                    f"\n🔍 Trying {
-                        provider_name.capitalize()} with query: '{query}'")
+                print(f"\n🔍 Trying {provider_name.capitalize()} with query: '{query}'")
                 async with provider_class() as provider:
                     results = await provider.search(query, per_page=2)
 
