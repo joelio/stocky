@@ -159,9 +159,7 @@ class StockyDemo:
             provider_name: str = "pexels",
             query: str = "nature"):
         """Demo pagination functionality."""
-        self.print_header(
-            f"Demonstrating pagination with {
-                provider_name.capitalize()}")
+        self.print_header(f"Demonstrating pagination with {provider_name.capitalize()}")
 
         if provider_name not in self.providers:
             print(f"❌ Unknown provider: {provider_name}")
