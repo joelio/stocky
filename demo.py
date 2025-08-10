@@ -245,9 +245,7 @@ class StockyDemo:
                     results = await provider.search(query, per_page=2)
 
                     if results:
-                        print(
-                            f"  ✅ Sample JSON output from {
-                                provider_name.capitalize()}:")
+                        print(f"  ✅ Sample JSON output from {provider_name.capitalize()}:")
 
                         # Convert to dict format (as would be returned by MCP)
                         json_result = {
