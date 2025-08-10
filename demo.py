@@ -100,9 +100,7 @@ class StockyDemo:
             provider_name: str = "pexels",
             query: str = "coffee"):
         """Demo searching a specific provider."""
-        self.print_header(
-            f"Searching {
-                provider_name.capitalize()} for: '{query}'")
+        self.print_header(f"Searching {provider_name.capitalize()} for: '{query}'")
 
         if provider_name not in self.providers:
             print(f"❌ Unknown provider: {provider_name}")
