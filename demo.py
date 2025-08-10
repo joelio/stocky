@@ -104,10 +104,7 @@ class StockyDemo:
 
         if provider_name not in self.providers:
             print(f"❌ Unknown provider: {provider_name}")
-            print(
-                f"   Available providers: {
-                    ', '.join(
-                        self.providers.keys())}")
+            print(f"   Available providers: {', '.join(self.providers.keys())}")
             return []
 
         try:
