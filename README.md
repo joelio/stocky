@@ -224,3 +224,8 @@ Each provider has different rate limits:
 <div align="center">
 Made with 💜 by the Stocky Team
 </div>
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/joelio-stocky).
+
