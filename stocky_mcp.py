@@ -109,8 +109,8 @@ class PexelsProvider(StockImageProvider):
         """Async context manager exit."""
         self.session = None
 
-    def search(self, query: str, per_page: int = 20, page: int = 1,
-               **kwargs) -> List[ImageResult]:
+    async def search(self, query: str, per_page: int = 20, page: int = 1,
+                     **kwargs) -> List[ImageResult]:
         """Search Pexels for images."""
         if not self.session:
             raise RuntimeError(
@@ -118,7 +118,11 @@ class PexelsProvider(StockImageProvider):
             )
 
         url = "https://api.pexels.com/v1/search"
-        headers = {"Authorization": self.api_key}
+        headers = {
+            "Authorization": self.api_key,
+            # Pexels' Cloudflare rejects requests with no User-Agent (403)
+            "User-Agent": "stocky-mcp/1.0",
+        }
         params = {
             "query": query,
             "per_page": per_page,
@@ -151,9 +155,6 @@ class PexelsProvider(StockImageProvider):
             # Parse JSON response
             response_data = buffer.getvalue().decode('utf-8')
             data = json.loads(response_data)
-        except (pycurl.error, json.JSONDecodeError) as e:
-            logger.error(f"Pexels API error: {e}")
-            return []
 
             results = []
             for photo in data.get("photos", []):
@@ -177,11 +178,12 @@ class PexelsProvider(StockImageProvider):
                     tags=[photo.get("alt", "").lower()]
                     if photo.get("alt") else []
                 ))
-        except pycurl.error as e:
+            return results
+        except (pycurl.error, json.JSONDecodeError) as e:
             logger.error(f"Pexels API error: {e}")
             return []
-            
-    def get_details(self, image_id: str) -> Optional[ImageResult]:  # noqa: E501
+
+    async def get_details(self, image_id: str) -> Optional[ImageResult]:  # noqa: E501
         """Get details for a specific Pexels image."""
         if not self.session:
             raise RuntimeError(
@@ -191,7 +193,11 @@ class PexelsProvider(StockImageProvider):
         # Extract ID from our prefixed ID
         pexels_id = image_id.replace("pexels_", "")
         url = f"https://api.pexels.com/v1/photos/{pexels_id}"
-        headers = {"Authorization": self.api_key}
+        headers = {
+            "Authorization": self.api_key,
+            # Pexels' Cloudflare rejects requests with no User-Agent (403)
+            "User-Agent": "stocky-mcp/1.0",
+        }
 
         try:
             # Use pycurl to make the request
