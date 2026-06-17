@@ -85,45 +85,59 @@ Add Stocky to your MCP client configuration:
 <p><em>Find the perfect image for your project</em></p>
 </div>
 
+Stocky exposes `search_stock_images`, `get_image_details`, and `download_image`
+as **MCP tools**. They are not Python functions you import and call — your MCP
+client (e.g. Claude Desktop) invokes them on your behalf when you ask in
+natural language. The parameters below map to each tool's arguments.
+
 ### Searching for Images
 
-Search across all providers:
-```python
-results = await search_stock_images("sunset beach")
-```
+Just ask your assistant, for example:
 
-Search specific providers:
-```python
-results = await search_stock_images(
-    query="mountain landscape",
-    providers=["pexels", "unsplash"],
-    per_page=30,
-    page=1
-)
+> Search stock photos for a sunset beach.
+
+> Find 30 mountain landscape photos from Pexels and Unsplash.
+
+These map to the `search_stock_images` tool. The arguments a client sends look
+like:
+
+```json
+{
+  "query": "mountain landscape",
+  "providers": ["pexels", "unsplash"],
+  "per_page": 30,
+  "page": 1
+}
 ```
 
 ### Getting Image Details
 
-```python
-details = await get_image_details("unsplash_abc123xyz")
-```
+> Get the details for image `unsplash_abc123xyz`.
+
+Maps to `get_image_details` with `{"image_id": "unsplash_abc123xyz"}`.
 
 ### Downloading Images
 
-```python
-# Download and save to disk
-result = await download_image(
-    image_id="pexels_123456", 
-    size="medium", 
-    output_path="/path/to/save.jpg"
-)
+> Download `pexels_123456` at medium size to /path/to/save.jpg.
 
-# Get base64-encoded image data
-result = await download_image(
-    image_id="unsplash_abc123", 
-    size="original"
-)
+Maps to `download_image`:
+
+```json
+{
+  "image_id": "pexels_123456",
+  "size": "medium",
+  "output_path": "/path/to/save.jpg"
+}
 ```
+
+If `output_path` is omitted, the tool returns base64-encoded image data instead
+of writing a file.
+
+### Calling the tools programmatically
+
+To drive the tools from Python, connect to the server through an MCP client
+session over stdio rather than importing these names. See
+[`test_mcp_client.py`](test_mcp_client.py) for a complete, runnable example.
 
 ## 🛠️ Tools Documentation
 
@@ -198,9 +212,11 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ### Common Issues
 
 **"API key not found" error**
-- Ensure your `.env` file exists and contains valid API keys
-- Check that environment variables are properly loaded
-- Verify API key names match exactly (case-sensitive)
+- Set the keys in the `env` block of your MCP client configuration (see
+  [MCP Client Configuration](#-mcp-client-configuration)) — the server reads
+  them from its environment and does not load a `.env` file on its own
+- Verify API key names match exactly (case-sensitive): `PEXELS_API_KEY`,
+  `UNSPLASH_ACCESS_KEY`
 
 **No results returned**
 - Try different search terms

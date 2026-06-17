@@ -1,137 +1,131 @@
 #!/usr/bin/env python3
 """
 Test client for Stocky MCP server.
-This script tests the functionality of the Stocky MCP server by making requests to it.
+
+Spawns the Stocky server over stdio (the same transport MCP clients such as
+Claude Desktop use), performs the MCP handshake, and exercises the tools and
+the help resource.
+
+Requires PEXELS_API_KEY and/or UNSPLASH_ACCESS_KEY in the environment for the
+search/details tests to return results; without them the server still starts
+and the handshake/tool-listing checks run.
+
+Usage:
+    PEXELS_API_KEY=... UNSPLASH_ACCESS_KEY=... python test_mcp_client.py
 """
 
 import asyncio
 import json
-import subprocess
+import os
 import sys
 from pathlib import Path
 
-# Import the correct client classes
-from mcp.client.session import ClientSession
-from mcp.types import Tool, Resource
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+SERVER_PATH = Path(__file__).resolve().parent / "stocky_mcp.py"
 
 
-async def start_server_process():
-    """Start the MCP server process in the background."""
-    # This is just a simulation since we already have a server running
-    print("Note: Using existing MCP server process")
-    return None  # We're not actually starting a new process
+def _tool_payload(result):
+    """Extract the JSON payload returned by a tool call.
+
+    FastMCP serializes a tool's return value into the result's text content
+    (and, on newer versions, structuredContent). Prefer the structured value
+    when present, otherwise parse the first text block.
+    """
+    structured = getattr(result, "structuredContent", None)
+    if structured:
+        # FastMCP wraps a plain return value under a single "result" key.
+        if isinstance(structured, dict) and set(structured) == {"result"}:
+            return structured["result"]
+        return structured
+    for block in result.content:
+        text = getattr(block, "text", None)
+        if text:
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                return text
+    return None
 
 
-async def test_search_images():
-    """Test the search_stock_images tool."""
-    print("Testing search_stock_images tool...")
-    
-    # Create a client session for the local MCP server
-    session = ClientSession("stocky", "http://localhost:8080")
+async def run_tests(session: ClientSession) -> None:
+    # Handshake
     await session.initialize()
-    
-    try:
-        # Get available tools
-        tools = await session.list_tools()
-        print(f"Available tools: {[tool.name for tool in tools]}")
-        
-        # Test search with default parameters
-        print("\nSearching for 'mountain landscape'...")
-        result = await session.call_tool(
-            "search_stock_images", 
-            {"query": "mountain landscape"}
-        )
-        
-        # Print the number of results and first result details
-        if isinstance(result, list):
-            print(f"Found {len(result)} images")
-            if result:
-                first_image = result[0]
-                print("\nFirst image details:")
-                print(f"ID: {first_image.get('id')}")
-                print(f"Title: {first_image.get('title')}")
-                print(f"Source: {first_image.get('source')}")
-                print(f"URL: {first_image.get('url')}")
-        else:
-            print(f"Error: {result}")
-    finally:
-        await session.shutdown()
+    print("Initialized session with Stocky server")
 
+    # Tools
+    tools = (await session.list_tools()).tools
+    tool_names = [t.name for t in tools]
+    print(f"Available tools: {tool_names}")
+    assert "search_stock_images" in tool_names, "search_stock_images missing"
 
-async def test_get_image_details():
-    """Test the get_image_details tool."""
-    print("\nTesting get_image_details tool...")
-    
-    # Create a client session for the local MCP server
-    session = ClientSession("stocky", "http://localhost:8080")
-    await session.initialize()
-    
-    try:
-        # First search to get an image ID
-        search_result = await session.call_tool(
-            "search_stock_images", 
-            {"query": "sunset", "per_page": 1}
+    have_keys = bool(
+        os.getenv("PEXELS_API_KEY") or os.getenv("UNSPLASH_ACCESS_KEY")
+    )
+    if not have_keys:
+        print(
+            "\nNo API keys set - skipping live search/details tests "
+            "(handshake and tool listing passed)."
         )
-        
-        if isinstance(search_result, list) and search_result:
-            image_id = search_result[0].get('id')
-            print(f"Getting details for image ID: {image_id}")
-            
-            # Get details for the first image
-            details = await session.call_tool(
-                "get_image_details", 
-                {"image_id": image_id}
+        return
+
+    # search_stock_images
+    print("\nSearching for 'mountain landscape'...")
+    search = _tool_payload(
+        await session.call_tool(
+            "search_stock_images", {"query": "mountain landscape", "per_page": 3}
+        )
+    )
+    results = search.get("results", []) if isinstance(search, dict) else []
+    print(f"Found {len(results)} images")
+    if results:
+        first = results[0]
+        print(f"  ID:     {first.get('id')}")
+        print(f"  Title:  {first.get('title')}")
+        print(f"  Source: {first.get('source')}")
+
+    # get_image_details
+    if results:
+        image_id = results[0]["id"]
+        print(f"\nGetting details for image ID: {image_id}")
+        details = _tool_payload(
+            await session.call_tool(
+                "get_image_details", {"image_id": image_id}
             )
-            
-            print("\nImage details:")
-            print(json.dumps(details, indent=2))
-        else:
-            print("No images found to test get_image_details")
-    finally:
-        await session.shutdown()
+        )
+        print("Image details:")
+        print(json.dumps(details, indent=2)[:500])
+
+    # help resource
+    print("\nListing resources...")
+    resources = (await session.list_resources()).resources
+    print(f"Available resources: {[str(r.uri) for r in resources]}")
+    help_result = await session.read_resource("stock-images://help")
+    help_text = help_result.contents[0].text
+    print(f"Help resource retrieved: {len(help_text)} characters")
 
 
-async def test_help_resource():
-    """Test the help resource."""
-    print("\nTesting help resource...")
-    
-    # Create a client session for the local MCP server
-    session = ClientSession("stocky", "http://localhost:8080")
-    await session.initialize()
-    
-    try:
-        # List available resources
-        resources = await session.list_resources()
-        print(f"Available resources: {[r.uri for r in resources]}")
-        
-        # Get the help resource
-        help_text = await session.read_resource("stock-images://help")
-        print(f"Help resource retrieved: {len(help_text)} characters")
-        print("\nFirst 200 characters of help text:")
-        print(help_text[:200] + "...")
-    finally:
-        await session.shutdown()
-
-
-async def main():
-    """Run all tests."""
+async def main() -> int:
     print("Starting Stocky MCP client tests...\n")
-    
-    # Start the server process (in this case, we're using an existing one)
-    server_process = await start_server_process()
-    
+
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[str(SERVER_PATH)],
+        env=os.environ.copy(),
+    )
+
     try:
-        # Run the tests
-        await test_search_images()
-        await test_get_image_details()
-        await test_help_resource()
-        print("\nAll tests completed!")
-    except Exception as e:
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await run_tests(session)
+    except Exception as e:  # noqa: BLE001 - surface any failure as a test failure
         print(f"\nError during tests: {e}")
-    finally:
-        # We're not terminating the server since we didn't start it
-        pass
+        return 1
+
+    print("\nAll tests completed!")
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))
