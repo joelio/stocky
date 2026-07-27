@@ -1,0 +1,167 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stocky-mcp"
+dynamic = ["version"]
+description = "An MCP server for searching royalty-free stock images from Pexels and Unsplash"
+readme = "README.md"
+requires-python = ">=3.10"
+# PEP 639: an SPDX expression, not a table. Note that a "License ::" classifier
+# must NOT be added alongside this — PyPI rejects the combination.
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joel Merrick" }]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "stock-images",
+    "pexels",
+    "unsplash",
+    "royalty-free",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    # 1.28.1 is the current stable v1 line. v2 renames FastMCP -> MCPServer,
+    # so the upper bound is deliberate rather than incidental.
+    "mcp>=1.28,<2",
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/joelio/stocky"
+Source = "https://github.com/joelio/stocky"
+Issues = "https://github.com/joelio/stocky/issues"
+Changelog = "https://github.com/joelio/stocky/blob/main/CHANGELOG.md"
+
+[project.scripts]
+stocky-mcp = "stocky_mcp.server:main"
+
+[dependency-groups]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+]
+lint = [
+    # Ruff ships default-rule and style changes in minor releases, so the
+    # upper bound keeps CI from breaking on an unrelated upgrade.
+    "ruff>=0.8,<0.17",
+]
+typing = ["mypy>=1.13"]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "typing" },
+]
+
+[tool.hatch.version]
+path = "src/stocky_mcp/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stocky_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+
+[tool.ruff]
+line-length = 90
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Ruff >= 0.16 enables a large default rule set. `select` would REPLACE that
+# set and silently disable hundreds of rules, so only ever extend it.
+extend-select = [
+    "ASYNC", # flake8-async — blocking calls in async functions
+    "B",     # flake8-bugbear
+    "C4",    # comprehensions
+    "I",     # isort
+    "PT",    # pytest style
+    "PTH",   # prefer pathlib
+    "RET",   # return simplification
+    "RUF",   # ruff-specific
+    "SIM",   # simplify
+    "T20",   # no print() — stdout carries JSON-RPC frames
+    "UP",    # pyupgrade
+]
+extend-ignore = [
+    "B008",   # function call in default argument
+    "RUF012", # mutable class attrs need ClassVar — noisy for plain config maps
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports exist to keep the public import surface stable.
+"src/stocky_mcp/__init__.py" = ["F401"]
+# The compatibility shim deliberately mutates sys.path before importing.
+"stocky_mcp.py" = ["E402", "F401"]
+"tests/**/*.py" = ["S101"]
+"demo.py" = ["T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["stocky_mcp"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# importlib mode keeps the root compatibility shim from shadowing the
+# installed src-layout package during collection.
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+]
+xfail_strict = true
+asyncio_mode = "auto"
+# Leaving these unset emits a DeprecationWarning on every run.
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+markers = [
+    "integration: hits the real provider APIs and needs credentials (deselect with '-m \"not integration\"')",
+]
+
+[tool.coverage.run]
+source_pkgs = ["stocky_mcp"]
+branch = true
+relative_files = true
+
+[tool.coverage.paths]
+source = ["src/stocky_mcp", "*/site-packages/stocky_mcp"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/stocky_mcp"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
