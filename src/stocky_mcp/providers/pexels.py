@@ -101,16 +101,25 @@ class PexelsProvider(StockImageProvider):
         data = await self.request_json(f"/photos/{photo_id}")
         return self._to_result(data)
 
-    def _to_result(self, photo: dict[str, Any]) -> ImageResult:
-        """Convert a Pexels photo object into an :class:`ImageResult`."""
-        src = photo.get("src") or {}
+    @staticmethod
+    def _extract_sizes(src: dict[str, Any]) -> dict[str, str]:
+        """Map Pexels' ``src`` onto Stocky's canonical size names.
+
+        Pexels returns eight variants. The three with no canonical equivalent
+        are kept under their own names rather than discarded.
+        """
         sizes = {
             canonical: src[pexels_key]
             for canonical, pexels_key in SIZE_MAP.items()
             if src.get(pexels_key)
         }
-        # Preserve the variants that have no canonical equivalent.
         sizes.update({key: src[key] for key in EXTRA_SIZES if src.get(key)})
+        return sizes
+
+    def _to_result(self, photo: dict[str, Any]) -> ImageResult:
+        """Convert a Pexels photo object into an :class:`ImageResult`."""
+        src = photo.get("src") or {}
+        sizes = self._extract_sizes(src)
 
         alt = (photo.get("alt") or "").strip()
         photographer = photo.get("photographer") or "Unknown"

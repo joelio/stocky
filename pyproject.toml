@@ -115,6 +115,9 @@ extend-ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["stocky_mcp"]
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

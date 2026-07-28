@@ -166,34 +166,52 @@ class UnsplashProvider(StockImageProvider):
             return None
         return payload.get("url") if isinstance(payload, dict) else None
 
+    @staticmethod
+    def _extract_sizes(urls: dict[str, Any]) -> dict[str, str]:
+        """Map Unsplash's ``urls`` onto Stocky's canonical size names."""
+        return {
+            canonical: urls[unsplash_key]
+            for canonical, unsplash_key in SIZE_MAP.items()
+            if urls.get(unsplash_key)
+        }
+
+    @staticmethod
+    def _extract_tags(photo: dict[str, Any]) -> list[str]:
+        """Pull tag titles, tolerating the malformed entries the API returns."""
+        return [
+            tag["title"]
+            for tag in photo.get("tags") or []
+            if isinstance(tag, dict) and tag.get("title")
+        ]
+
+    @staticmethod
+    def _extract_text(photo: dict[str, Any], photographer: str) -> tuple[str, str | None]:
+        """Resolve a title and description.
+
+        ``description`` is the author's caption and is very often null, while
+        ``alt_description`` is generated and almost always present — so the
+        fallback order matters for result quality.
+        """
+        alt = (photo.get("alt_description") or "").strip()
+        caption = (photo.get("description") or "").strip()
+        title = caption or alt or f"Photo by {photographer}"
+        return title, (alt or caption or None)
+
     def _to_result(self, photo: dict[str, Any]) -> ImageResult:
         """Convert an Unsplash photo object into an :class:`ImageResult`."""
         urls = photo.get("urls") or {}
         user = photo.get("user") or {}
         links = photo.get("links") or {}
 
-        sizes = {
-            canonical: urls[unsplash_key]
-            for canonical, unsplash_key in SIZE_MAP.items()
-            if urls.get(unsplash_key)
-        }
-
-        # `description` is the author's caption and is very often null;
-        # `alt_description` is generated and almost always present.
-        alt = (photo.get("alt_description") or "").strip()
-        caption = (photo.get("description") or "").strip()
+        sizes = self._extract_sizes(urls)
+        tags = self._extract_tags(photo)
         photographer = user.get("name") or "Unknown"
-
-        tags = [
-            tag["title"]
-            for tag in photo.get("tags", [])
-            if isinstance(tag, dict) and tag.get("title")
-        ]
+        title, description = self._extract_text(photo, photographer)
 
         return ImageResult(
             id=f"{self.name}_{photo['id']}",
-            title=caption or alt or f"Photo by {photographer}",
-            description=alt or caption or None,
+            title=title,
+            description=description,
             url=urls.get("regular") or urls.get("full") or "",
             thumbnail=urls.get("small") or urls.get("thumb") or "",
             width=photo.get("width", 0),
