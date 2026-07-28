@@ -11,9 +11,10 @@ import logging
 import sys
 from typing import Any
 
+import httpx
+
 from .config import Config, configure_logging
 from .manager import StockImageManager
-from .models import SIZE_NAMES
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -75,14 +76,21 @@ hotlinked from their returned URLs rather than re-hosted.
 class StockyServer:
     """Owns the FastMCP application and its tool registrations."""
 
-    def __init__(self, config: Config | None = None) -> None:
+    def __init__(
+        self,
+        config: Config | None = None,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         """Build the server.
 
         Args:
             config: Resolved configuration. Defaults to reading the environment.
+            transport: Optional httpx transport passed through to the
+                providers. Tests use it to serve canned responses.
         """
         self.config = config or Config.from_env()
-        self.manager = StockImageManager(self.config)
+        self.manager = StockImageManager(self.config, transport=transport)
         self.mcp = FastMCP("stocky")
         self._register_tools()
         self._register_resources()
@@ -180,9 +188,13 @@ class StockyServer:
         self.mcp.run()
 
 
-def build_server(config: Config | None = None) -> StockyServer:
+def build_server(
+    config: Config | None = None,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> StockyServer:
     """Create a configured server. Useful for tests and embedding."""
-    return StockyServer(config)
+    return StockyServer(config, transport=transport)
 
 
 def main() -> None:

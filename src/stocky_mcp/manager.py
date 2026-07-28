@@ -206,7 +206,7 @@ class StockImageManager:
         except ProviderError as exc:
             logger.warning("%s search failed: %s", name, exc)
             return name, [], str(exc)
-        except Exception as exc:  # noqa: BLE001 - one provider must not break the rest
+        except Exception as exc:
             logger.exception("Unexpected error searching %s", name)
             return name, [], f"Unexpected error from {name}: {exc}"
         return name, images, None
@@ -285,8 +285,7 @@ class StockImageManager:
             )
         if name not in self.providers:
             return None, (
-                f"Provider {name!r} is not configured. Set its API key to "
-                f"use it."
+                f"Provider {name!r} is not configured. Set its API key to use it."
             )
         return self.providers[name], None
 
@@ -360,9 +359,7 @@ class StockImageManager:
 
                 image_url = result.url_for_size(size)
                 if not image_url:
-                    return {
-                        "error": f"No URL available for size {size!r} on {image_id}."
-                    }
+                    return {"error": f"No URL available for size {size!r} on {image_id}."}
 
                 # Unsplash's licence requires reporting the download. Do it
                 # before fetching so a refusal is visible in the logs even if
@@ -419,8 +416,7 @@ class StockImageManager:
                 if response.status_code != 200:
                     return {
                         "error": (
-                            f"Failed to download image: HTTP "
-                            f"{response.status_code}"
+                            f"Failed to download image: HTTP {response.status_code}"
                         )
                     }
 

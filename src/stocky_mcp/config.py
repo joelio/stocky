@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,7 @@ def _get_bool(env: Mapping[str, str], name: str, default: bool) -> bool:
         return True
     if value in _FALSEY:
         return False
-    logger.warning(
-        "Ignoring invalid boolean for %s: %r (expected true/false)", name, raw
-    )
+    logger.warning("Ignoring invalid boolean for %s: %r (expected true/false)", name, raw)
     return default
 
 
@@ -98,7 +96,7 @@ class Config:
     download_root: str | None = field(default=None)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> "Config":
+    def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
         """Build a configuration from environment variables."""
         env = os.environ if env is None else env
 

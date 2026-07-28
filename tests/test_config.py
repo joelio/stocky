@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import sys
 
@@ -30,9 +31,7 @@ def test_empty_environment_yields_defaults() -> None:
 
 
 def test_api_keys_are_read_and_stripped() -> None:
-    config = Config.from_env(
-        {"PEXELS_API_KEY": "  pk  ", "UNSPLASH_ACCESS_KEY": "uk"}
-    )
+    config = Config.from_env({"PEXELS_API_KEY": "  pk  ", "UNSPLASH_ACCESS_KEY": "uk"})
 
     assert config.pexels_api_key == "pk"
     assert config.unsplash_access_key == "uk"
@@ -122,7 +121,7 @@ def test_configured_providers_lists_only_credentialled_ones() -> None:
 def test_config_is_immutable() -> None:
     config = Config.from_env({})
 
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         config.cache_ttl = 10  # type: ignore[misc]
 
 
