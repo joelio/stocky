@@ -1,0 +1,10 @@
+---
+# README uses <details>/<summary> for collapsible sections and centred blocks,
+# which GitHub renders but markdownlint flags as raw HTML.
+MD033: false
+# The changelog follows Keep a Changelog, which repeats "### Added" and
+# "### Fixed" under each version heading by design.
+MD024:
+  siblings_only: true
+# Long prose lines are wrapped by hand at 80; tables and links exceed it.
+MD013: false
