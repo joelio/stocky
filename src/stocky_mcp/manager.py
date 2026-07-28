@@ -121,20 +121,9 @@ class StockImageManager:
             A dictionary with ``query``, ``page``, ``per_page``, ``providers``,
             ``results`` keyed by provider, ``errors`` and ``total_results``.
         """
-        if not self.providers:
-            return self._no_providers_error()
-
-        requested = providers if providers is not None else list(self.providers)
-        selected = [name for name in requested if name in self.providers]
-        if not selected:
-            return {
-                "error": (
-                    f"None of the requested providers are configured: "
-                    f"{', '.join(requested)}. Available: "
-                    f"{', '.join(self.providers) or 'none'}."
-                ),
-                "results": {},
-            }
+        selected, selection_error = self._select_providers(providers)
+        if selection_error is not None:
+            return selection_error
 
         show_attribution = (
             include_attribution
@@ -162,6 +151,46 @@ class StockImageManager:
             )
         )
 
+        payload = self._build_payload(query, selected, per_page, page, outcomes)
+
+        # Only cache a search that fully succeeded; caching a transient auth
+        # or rate-limit failure would keep serving it for the whole TTL.
+        if "errors" not in payload:
+            self.cache.set(cache_key, payload)
+
+        return self._apply_attribution(payload, show_attribution)
+
+    def _select_providers(
+        self,
+        requested: list[str] | None,
+    ) -> tuple[list[str], dict[str, Any] | None]:
+        """Resolve the provider list, or explain why none are usable."""
+        if not self.providers:
+            return [], self._no_providers_error()
+
+        wanted = requested if requested is not None else list(self.providers)
+        selected = [name for name in wanted if name in self.providers]
+
+        if not selected:
+            return [], {
+                "error": (
+                    f"None of the requested providers are configured: "
+                    f"{', '.join(wanted)}. Available: "
+                    f"{', '.join(self.providers) or 'none'}."
+                ),
+                "results": {},
+            }
+        return selected, None
+
+    @staticmethod
+    def _build_payload(
+        query: str,
+        selected: list[str],
+        per_page: int,
+        page: int,
+        outcomes: list[tuple[str, list[ImageResult], str | None]],
+    ) -> dict[str, Any]:
+        """Assemble the response from each provider's outcome."""
         results: dict[str, list[dict[str, Any]]] = {}
         errors: dict[str, str] = {}
         for name, images, error in outcomes:
@@ -179,13 +208,7 @@ class StockImageManager:
         }
         if errors:
             payload["errors"] = errors
-
-        # Only cache a search that fully succeeded; caching a transient auth
-        # or rate-limit failure would keep serving it for the whole TTL.
-        if not errors:
-            self.cache.set(cache_key, payload)
-
-        return self._apply_attribution(payload, show_attribution)
+        return payload
 
     async def _search_one(
         self,
@@ -244,9 +267,8 @@ class StockImageManager:
     ) -> dict[str, Any]:
         """Fetch full metadata for one prefixed image id, e.g. ``pexels_123``."""
         provider, error = self._resolve_provider(image_id)
-        if error:
-            return {"error": error}
-        assert provider is not None  # narrowed by _resolve_provider
+        if provider is None:
+            return {"error": error or f"Could not resolve a provider for {image_id!r}"}
 
         show_attribution = (
             include_attribution
@@ -341,9 +363,8 @@ class StockImageManager:
             }
 
         provider, error = self._resolve_provider(image_id)
-        if error:
-            return {"error": error}
-        assert provider is not None
+        if provider is None:
+            return {"error": error or f"Could not resolve a provider for {image_id!r}"}
 
         resolved_path: Path | None = None
         if output_path:

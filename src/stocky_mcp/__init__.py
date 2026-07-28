@@ -59,7 +59,9 @@ def __getattr__(name: str) -> object:
     # function through the import machinery's attribute lookup and recurses.
     import importlib
 
-    module = importlib.import_module(f"{__name__}.server")
+    # A literal path, not an f-string: nothing here is caller-controlled,
+    # and the allow-list above has already constrained `name`.
+    module = importlib.import_module("stocky_mcp.server")
     globals()["server"] = module
 
     return module if name == "server" else getattr(module, name)
