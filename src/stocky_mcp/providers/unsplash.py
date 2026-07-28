@@ -223,4 +223,5 @@ class UnsplashProvider(StockImageProvider):
             attribution_url=links.get("html"),
             tags=tags,
             sizes=sizes,
+            download_location=links.get("download_location"),
         )

@@ -11,6 +11,7 @@ so it lives in one tested place rather than being improvised at each call site.
 
 from __future__ import annotations
 
+from html import escape
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from .models import ImageResult
@@ -56,11 +57,14 @@ def _unsplash_attribution(result: ImageResult, app_name: str) -> dict[str, str]:
     photographer_url = add_utm(result.photographer_url or "", app_name)
     source_url = add_utm("https://unsplash.com/", app_name)
 
+    # Photographer names come from user profiles on a public site, so they
+    # are escaped before being interpolated into markup callers may paste.
+    name = escape(result.photographer)
     return {
         "text": f"Photo by {result.photographer} on Unsplash",
         "html": (
-            f'Photo by <a href="{photographer_url}">{result.photographer}</a> '
-            f'on <a href="{source_url}">Unsplash</a>'
+            f'Photo by <a href="{escape(photographer_url, quote=True)}">{name}</a> '
+            f'on <a href="{escape(source_url, quote=True)}">Unsplash</a>'
         ),
         "photographer_url": photographer_url,
         "source_url": source_url,
@@ -72,11 +76,12 @@ def _pexels_attribution(result: ImageResult) -> dict[str, str]:
     photo_url = result.attribution_url or "https://www.pexels.com"
     photographer_url = result.photographer_url or "https://www.pexels.com"
 
+    name = escape(result.photographer)
     return {
         "text": f"Photo by {result.photographer} on Pexels",
         "html": (
-            f'This <a href="{photo_url}">Photo</a> was taken by '
-            f'<a href="{photographer_url}">{result.photographer}</a> on '
+            f'This <a href="{escape(photo_url, quote=True)}">Photo</a> was taken by '
+            f'<a href="{escape(photographer_url, quote=True)}">{name}</a> on '
             f'<a href="https://www.pexels.com">Pexels</a>'
         ),
         "photographer_url": photographer_url,

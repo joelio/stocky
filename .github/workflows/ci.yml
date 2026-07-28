@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # setup-uv publishes no floating major tag above v7, so this is
       # pinned to an exact release rather than a moving ref.
@@ -47,6 +49,8 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # setup-uv publishes no floating major tag above v7, so this is
       # pinned to an exact release rather than a moving ref.
@@ -76,6 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # setup-uv publishes no floating major tag above v7, so this is
       # pinned to an exact release rather than a moving ref.

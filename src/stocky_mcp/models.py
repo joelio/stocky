@@ -35,6 +35,10 @@ class ImageResult:
     attribution_url: str | None = None
     tags: list[str] = field(default_factory=list)
     sizes: dict[str, str] = field(default_factory=dict)
+    #: Unsplash's ``links.download_location``. Carried through so a download
+    #: can report itself without re-fetching the photo, which would halve the
+    #: usable request budget on their demo tier.
+    download_location: str | None = None
 
     def __post_init__(self) -> None:
         """Normalise mutable fields that callers may pass as ``None``."""

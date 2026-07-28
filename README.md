@@ -122,7 +122,10 @@ above.
 | `STOCKY_USER_AGENT` | `stocky-mcp` | User-Agent sent to providers |
 
 `STOCKY_DOWNLOAD_ROOT` is worth setting. Download paths come from
-model-generated tool calls, and this confines writes to one directory.
+model-generated tool calls, and this confines writes to one directory. Stocky
+always refuses a non-image file extension, and validates that image URLs from a
+provider are public HTTP(S) addresses before fetching them, but a download root
+is the strongest control available.
 
 ## 📖 Usage
 

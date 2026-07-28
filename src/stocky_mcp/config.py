@@ -9,6 +9,7 @@ is documented in one place and is trivial to construct in tests.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import sys
 from collections.abc import Mapping
@@ -56,6 +57,15 @@ def _get_number(
             "Ignoring invalid number for %s: %r (expected a number)", name, raw
         )
         return default
+    # NaN compares False against everything, so it would slip past the
+    # minimum check below and then blow up in int(). Infinity fails int() too.
+    if not math.isfinite(value):
+        logger.warning(
+            "Ignoring non-finite value for %s: %r (expected a finite number)",
+            name,
+            raw,
+        )
+        return default
     if value < minimum:
         logger.warning(
             "Value for %s (%s) is below the minimum %s; using the minimum",
@@ -84,16 +94,15 @@ class Config:
             requests without one.
     """
 
-    pexels_api_key: str | None = None
-    unsplash_access_key: str | None = None
+    pexels_api_key: str | None = field(default=None, repr=False)
+    unsplash_access_key: str | None = field(default=None, repr=False)
     enable_attribution: bool = False
     cache_ttl: float = DEFAULT_CACHE_TTL
     http_timeout: float = DEFAULT_HTTP_TIMEOUT
     max_download_bytes: int = DEFAULT_MAX_DOWNLOAD_BYTES
     log_level: str = "INFO"
     user_agent: str = DEFAULT_USER_AGENT
-    allow_absolute_download_paths: bool = True
-    download_root: str | None = field(default=None)
+    download_root: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
@@ -151,6 +160,11 @@ def configure_logging(config: Config) -> None:
     handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
+
+    # Pin the ROOT logger to stderr as well. httpx, httpcore, anyio and mcp all
+    # propagate to root; if an embedding application called basicConfig with a
+    # stdout stream first, their records would corrupt the JSON-RPC frames.
+    logging.basicConfig(stream=sys.stderr, force=False)
 
     package_logger = logging.getLogger("stocky_mcp")
     package_logger.handlers.clear()

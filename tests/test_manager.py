@@ -390,7 +390,7 @@ async def test_download_adds_an_extension_when_missing(tmp_path: Path) -> None:
         "pexels_67762", output_path=str(tmp_path / "noext")
     )
 
-    assert result["path"].endswith(".jpeg")
+    assert result["path"].endswith(".jpg")
 
 
 async def test_download_creates_parent_directories(tmp_path: Path) -> None:

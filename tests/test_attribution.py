@@ -7,6 +7,7 @@ make correct attribution a condition of API access.
 from __future__ import annotations
 
 import re
+from html import unescape
 from urllib.parse import parse_qs, urlparse
 
 from stocky_mcp.attribution import add_utm, attribution_for
@@ -14,8 +15,12 @@ from stocky_mcp.models import ImageResult
 
 
 def hrefs(html: str) -> list[str]:
-    """Extract href targets, so tests assert on links not raw text."""
-    return re.findall(r'href="([^"]+)"', html)
+    """Extract href targets, so tests assert on links not raw text.
+
+    Values are unescaped: an href legitimately carries ``&amp;`` in markup,
+    which would otherwise break query-string parsing.
+    """
+    return [unescape(href) for href in re.findall(r'href="([^"]+)"', html)]
 
 
 def make_result(provider: str, **overrides: object) -> ImageResult:

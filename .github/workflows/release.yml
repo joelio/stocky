@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       # setup-uv publishes no floating major tag above v7, so this is
       # pinned to an exact release rather than a moving ref.
       - uses: astral-sh/setup-uv@v9.0.0
@@ -47,4 +49,7 @@ jobs:
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # Pinned by commit, not by the mutable release/v1 branch. This is the
+      # only step that holds a live PyPI OIDC token, so it must not resolve to
+      # whatever that branch points at on the day.
+      - uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
