@@ -55,6 +55,18 @@ def test_providers_are_registered_for_every_known_name() -> None:
 # --------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _clean_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove ambient provider keys.
+
+    These tests assert on which providers get configured. A developer who has
+    exported real credentials — which the integration tests require — would
+    otherwise see failures that have nothing to do with their change.
+    """
+    for name in ("PEXELS_API_KEY", "UNSPLASH_ACCESS_KEY"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def captured_run(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     """Stop main() short of actually serving, recording the server it built."""
@@ -99,9 +111,6 @@ def test_main_starts_without_credentials_but_warns(
     captured_run: list[Any],
 ) -> None:
     """Exiting here would surface in clients as an unexplained handshake hang."""
-    monkeypatch.delenv("PEXELS_API_KEY", raising=False)
-    monkeypatch.delenv("UNSPLASH_ACCESS_KEY", raising=False)
-
     handler = ListHandler()
     logging.getLogger("stocky_mcp.server").addHandler(handler)
     try:

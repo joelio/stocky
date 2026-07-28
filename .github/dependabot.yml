@@ -25,12 +25,14 @@ updates:
       interval: "weekly"
       day: "monday"
     groups:
-      python-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+      # Order matters: a dependency joins the FIRST group it matches, so the
+      # dev-specific rule has to precede the catch-all or it never fires.
       dev-dependencies:
         dependency-type: "development"
         patterns: ["*"]
+      python-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "deps"
       prefix-development: "deps-dev"
