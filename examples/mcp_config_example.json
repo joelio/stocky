@@ -1,13 +1,32 @@
 {
+  "_comment": "Recommended setup uses uvx and needs nothing installed. The two entries prefixed with an underscore are alternatives, not active servers — rename one to 'stocky' to use it instead.",
   "mcpServers": {
     "stocky": {
-      "command": "python",
-      "args": [
-        "/path/to/stocky/stocky_mcp.py"
-      ],
+      "command": "uvx",
+      "args": ["stocky-mcp"],
       "env": {
         "PEXELS_API_KEY": "your_pexels_api_key_here",
-        "UNSPLASH_ACCESS_KEY": "your_unsplash_access_key_here"
+        "UNSPLASH_ACCESS_KEY": "your_unsplash_access_key_here",
+        "ENABLE_ATTRIBUTION_LINKS": "true",
+        "STOCKY_CACHE_TTL": "300",
+        "STOCKY_DOWNLOAD_ROOT": "/Users/you/Pictures/stocky"
+      }
+    },
+
+    "_stocky_installed": {
+      "_comment": "If installed with 'uv tool install stocky-mcp' or 'pipx install stocky-mcp'.",
+      "command": "stocky-mcp",
+      "env": {
+        "PEXELS_API_KEY": "your_pexels_api_key_here"
+      }
+    },
+
+    "_stocky_from_source": {
+      "_comment": "From a source checkout. Prefer an absolute interpreter path: GUI-launched clients often start with a minimal PATH and cannot find a virtualenv python.",
+      "command": "/path/to/stocky/.venv/bin/python",
+      "args": ["/path/to/stocky/stocky_mcp.py"],
+      "env": {
+        "PEXELS_API_KEY": "your_pexels_api_key_here"
       }
     }
   }

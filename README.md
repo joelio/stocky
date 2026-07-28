@@ -2,24 +2,31 @@
 
 <div align="center">
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/joelio/stocky/actions/workflows/ci.yml/badge.svg)](https://github.com/joelio/stocky/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://github.com/modelcontextprotocol)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
+Stocky is an [MCP](https://modelcontextprotocol.io) server that lets an AI
+assistant search, inspect and download royalty-free stock photography from
+**Pexels** and **Unsplash**.
+
 ## ✨ Features
 
-- 🔍 **Multi-Provider Search** - Search across Pexels and Unsplash simultaneously
-- 📊 **Rich Metadata** - Get comprehensive image details including dimensions, photographer info, and licensing
-- 📄 **Pagination Support** - Browse through large result sets with ease
-- 🛡️ **Graceful Error Handling** - Robust error handling for API failures
-- ⚡ **Async Performance** - Lightning-fast concurrent API calls
-- 🎯 **Provider Flexibility** - Search specific providers or all at once
+- 🔍 **Multi-provider search** — queries Pexels and Unsplash concurrently
+- 📊 **Rich metadata** — dimensions, photographer, tags and every image size
+- ⚖️ **Licence-aware** — generates the attribution each provider requires, and
+  reports Unsplash downloads as their API guidelines demand
+- ⏱️ **Search caching** — a short TTL cache keeps repeat queries off your quota
+- 🛡️ **Honest errors** — a failing provider is reported, not silently returned
+  as "no results"
+- 🎯 **Filters** — orientation, colour and sort, validated per provider
 
 ![Photography Example](images/photography-example1.jpg)
 
-**Beautiful stock photography at your fingertips**  
+**Beautiful stock photography at your fingertips**
 Example image used for demonstration purposes
 
 ![Mountain Landscape](images/landscape-mountains.jpg)
@@ -27,213 +34,243 @@ Example image used for demonstration purposes
 
 Photo by [Simon Berger](https://unsplash.com/@simon_berger) on [Unsplash](https://unsplash.com/photos/twukN12EN7c)
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
-### Installation
+### 1. Get API keys
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/stocky-mcp.git
-cd stocky-mcp
-```
+Both are free:
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+| Provider | Where | Notes |
+|---|---|---|
+| **Pexels** 📷 | [pexels.com/api](https://www.pexels.com/api/) | 200 requests/hour by default |
+| **Unsplash** 🌅 | [unsplash.com/developers](https://unsplash.com/developers) | 50/hour in demo mode, 1000/hour once your app is approved |
 
-### API Key Setup
+You only need one — Stocky runs with whichever providers are configured.
 
-You'll need free API keys from each provider:
+### 2. Add it to your MCP client
 
-1. **Pexels** 📷 - Get your key at [pexels.com/api](https://www.pexels.com/api/)
-2. **Unsplash** 🌅 - Sign up at [unsplash.com/developers](https://unsplash.com/developers)
-
-
-### API Key Configuration
-
-You'll need to configure your API keys when setting up the MCP server. These keys are used to authenticate with the stock image providers.
-
-### Running as an MCP Server
-
-Stocky is designed to be run as an MCP (Model Context Protocol) server, not as a standalone application. It should be configured in your MCP client configuration.
-
-## 🔧 MCP Client Configuration
-
-Add Stocky to your MCP client configuration:
+The recommended configuration needs no installation at all:
 
 ```json
 {
   "mcpServers": {
     "stocky": {
-      "command": "python",
-      "args": ["/path/to/stocky_mcp.py"],
+      "command": "uvx",
+      "args": ["stocky-mcp"],
       "env": {
         "PEXELS_API_KEY": "your_pexels_key",
-        "UNSPLASH_ACCESS_KEY": "your_unsplash_key",
-
+        "UNSPLASH_ACCESS_KEY": "your_unsplash_key"
       }
     }
   }
 }
 ```
 
-## 📖 Usage Examples
+<details>
+<summary>Other ways to run it</summary>
+
+**Installed with pip or uv:**
+
+```bash
+uv tool install stocky-mcp     # or: pipx install stocky-mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "stocky": {
+      "command": "stocky-mcp",
+      "env": { "PEXELS_API_KEY": "your_pexels_key" }
+    }
+  }
+}
+```
+
+**From a source checkout** — still supported so existing configurations keep
+working:
+
+```json
+{
+  "mcpServers": {
+    "stocky": {
+      "command": "python",
+      "args": ["/path/to/stocky/stocky_mcp.py"],
+      "env": { "PEXELS_API_KEY": "your_pexels_key" }
+    }
+  }
+}
+```
+
+</details>
+
+Stocky reads its configuration from the environment its client starts it in.
+It does not load a `.env` file of its own, so keys must go in the `env` block
+above.
+
+## ⚙️ Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PEXELS_API_KEY` | — | Enables the Pexels provider |
+| `UNSPLASH_ACCESS_KEY` | — | Enables the Unsplash provider |
+| `ENABLE_ATTRIBUTION_LINKS` | `false` | Include attribution details in every result |
+| `STOCKY_CACHE_TTL` | `300` | Search cache lifetime in seconds. `0` disables caching |
+| `STOCKY_HTTP_TIMEOUT` | `15` | Per-request timeout in seconds |
+| `STOCKY_MAX_DOWNLOAD_BYTES` | `26214400` | Refuse downloads larger than this (25 MiB) |
+| `STOCKY_DOWNLOAD_ROOT` | — | If set, confine all downloads to this directory |
+| `STOCKY_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `STOCKY_USER_AGENT` | `stocky-mcp` | User-Agent sent to providers |
+
+`STOCKY_DOWNLOAD_ROOT` is worth setting. Download paths come from
+model-generated tool calls, and this confines writes to one directory.
+
+## 📖 Usage
 
 <div align="center">
 <img src="images/photography-example2.jpg" alt="Stock Photography Example" width="600">
 <p><em>Find the perfect image for your project</em></p>
 </div>
 
-Stocky exposes `search_stock_images`, `get_image_details`, and `download_image`
-as **MCP tools**. They are not Python functions you import and call — your MCP
-client (e.g. Claude Desktop) invokes them on your behalf when you ask in
-natural language. The parameters below map to each tool's arguments.
+Stocky exposes three **MCP tools**. You don't call them directly — your client
+invokes them when you ask in natural language.
 
-### Searching for Images
+> Search stock photos for a misty pine forest at dawn.
 
-Just ask your assistant, for example:
+> Find 30 landscape-orientation mountain photos from Pexels.
 
-> Search stock photos for a sunset beach.
+> Download `pexels_123456` at medium size to ~/Pictures/mountain.jpg
 
-> Find 30 mountain landscape photos from Pexels and Unsplash.
-
-These map to the `search_stock_images` tool. The arguments a client sends look
-like:
-
-```json
-{
-  "query": "mountain landscape",
-  "providers": ["pexels", "unsplash"],
-  "per_page": 30,
-  "page": 1
-}
-```
-
-### Getting Image Details
-
-> Get the details for image `unsplash_abc123xyz`.
-
-Maps to `get_image_details` with `{"image_id": "unsplash_abc123xyz"}`.
-
-### Downloading Images
-
-> Download `pexels_123456` at medium size to /path/to/save.jpg.
-
-Maps to `download_image`:
-
-```json
-{
-  "image_id": "pexels_123456",
-  "size": "medium",
-  "output_path": "/path/to/save.jpg"
-}
-```
-
-If `output_path` is omitted, the tool returns base64-encoded image data instead
-of writing a file.
-
-### Calling the tools programmatically
-
-To drive the tools from Python, connect to the server through an MCP client
-session over stdio rather than importing these names. See
-[`test_mcp_client.py`](test_mcp_client.py) for a complete, runnable example.
-
-## 🛠️ Tools Documentation
+## 🛠️ Tools
 
 ### `search_stock_images`
 
-Search for royalty-free stock images across multiple providers.
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `query` | str | *required* | Search terms |
+| `providers` | list | all configured | `["pexels", "unsplash"]` |
+| `per_page` | int | `20` | Clamped per provider: Pexels 80, Unsplash 30 |
+| `page` | int | `1` | 1-based |
+| `sort` | str | `relevant` | `relevant` or `latest`. **Unsplash only** — Pexels has no sort option |
+| `orientation` | str | — | `landscape`, `portrait`, `square` |
+| `color` | str | — | A colour name; Pexels also accepts hex codes |
+| `include_attribution` | bool | — | Overrides `ENABLE_ATTRIBUTION_LINKS` |
 
-**Parameters:**
-- `query` (str, required) - Search terms for finding images
-- `providers` (list, optional) - List of providers to search: `["pexels", "unsplash"]`
-- `per_page` (int, optional) - Results per page, max 50 (default: 20)
-- `page` (int, optional) - Page number for pagination (default: 1)
-- `sort_by` (str, optional) - Sort results by "relevance" or "newest"
+Returns results grouped by provider, plus `total_results` and — if any
+provider failed — an `errors` map explaining which and why.
 
-**Returns:** List of image results with metadata
+An invalid `orientation` or `color` is dropped rather than forwarded: Pexels
+silently ignores bad filters and still returns 200, which would otherwise hide
+the mistake, while Unsplash rejects them outright with HTTP 400.
 
 ### `get_image_details`
 
-Get detailed information about a specific image.
-
-**Parameters:**
-- `image_id` (str, required) - Image ID in format `provider_id` (e.g., `pexels_123456`)
-
-**Returns:** Detailed image information including full metadata
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `image_id` | str | *required* | Prefixed id, e.g. `pexels_123456` |
+| `include_attribution` | bool | — | Overrides `ENABLE_ATTRIBUTION_LINKS` |
 
 ### `download_image`
 
-Download an image to local storage or get base64 encoded data.
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `image_id` | str | *required* | Prefixed id |
+| `size` | str | `original` | `thumbnail`, `small`, `medium`, `large`, `original` |
+| `output_path` | str | — | Omit to receive base64 data instead |
 
-**Parameters:**
-- `image_id` (str, required) - Image ID in format `provider_id` (e.g., `pexels_123456`)
-- `size` (str, optional) - Image size variant to download (default: "original")
-  - Options: thumbnail, small, medium, large, original
-- `output_path` (str, optional) - Path to save the image locally
-  - If not provided, returns base64 encoded image data
+If a provider doesn't offer the requested size, the closest available one is
+used rather than failing.
 
-**Returns:** Dictionary with download information or error
+### Resource
 
-## 📄 License Information
+`stock-images://help` — a usage guide the assistant can read on demand.
 
-<div align="center">
-<img src="images/photography-example3.jpg" alt="License Information" width="600">
-<p><em>Royalty-free images for your creative projects</em></p>
-</div>
+## ⚖️ Licence and attribution
 
-All images returned by Stocky are free to use:
+Images are free to use, but **both providers require attribution as a condition
+of API access**. This is not optional, and the previous version of this
+document was wrong to imply otherwise for Pexels.
 
-- **Pexels** ✅ - Free for commercial and personal use, no attribution required
-- **Unsplash** ✅ - Free under the Unsplash License
+**Pexels** requires a prominent link back to Pexels wherever API results are
+shown, and asks that you credit the photographer where possible.
 
+**Unsplash** requires that you credit both the photographer and Unsplash, with
+UTM parameters on the links, and that images are **hotlinked** from the URLs
+the API returns rather than re-hosted.
 
-Always check the specific license for each image before use in production.
+Set `ENABLE_ATTRIBUTION_LINKS=true` and each result gains an `attribution`
+block with ready-made `text` and `html` in the correct format for its provider.
 
-## 🤝 Contributing
+> **Note on `download_image`.** Saving Unsplash bytes to disk or returning them
+> base64-encoded is in tension with Unsplash's hotlinking requirement. Stocky
+> fires the mandatory download-report endpoint whenever you download an
+> Unsplash image, but if you are *displaying* images in an application, use the
+> hotlinked URLs from the search results instead of downloading them.
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Read the full terms: [Pexels](https://www.pexels.com/api/documentation/) ·
+[Unsplash](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines)
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## 🧑‍💻 Development
 
-## 🙏 Acknowledgments
+```bash
+git clone https://github.com/joelio/stocky.git
+cd stocky
+uv sync --group dev
+```
 
-- Thanks to [Pexels](https://www.pexels.com) and [Unsplash](https://unsplash.com) for providing free APIs
-- Built with the [Model Context Protocol](https://github.com/modelcontextprotocol)
-- Created with ❤️ for the developer community
+```bash
+uv run pytest -m "not integration"   # unit tests, no network
+uv run pytest -m integration         # needs real API keys
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+**Client reports a timeout on startup**
+Almost always a launch problem rather than a Stocky bug. GUI-launched clients
+often have a minimal `PATH`, so `uvx` or a virtualenv `python` may not be
+found — use an absolute path, or `uvx` with `uv` installed system-wide. You can
+reproduce the handshake yourself:
 
-**"API key not found" error**
-- Set the keys in the `env` block of your MCP client configuration (see
-  [MCP Client Configuration](#-mcp-client-configuration)) — the server reads
-  them from its environment and does not load a `.env` file on its own
-- Verify API key names match exactly (case-sensitive): `PEXELS_API_KEY`,
-  `UNSPLASH_ACCESS_KEY`
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
+  | stocky-mcp
+```
 
-**No results returned**
-- Try different search terms
-- Check your internet connection
-- Verify API keys are active and have not exceeded rate limits
+A JSON response means the server is fine. Note that stdout carries the
+protocol, so Stocky sends all logging to stderr — anything else printed there
+would corrupt the stream.
 
-**Installation issues**
-- Ensure Python 3.8+ is installed
-- Try creating a virtual environment: `python -m venv venv`
-- Update pip: `pip install --upgrade pip`
+**"No image providers are configured"**
+No keys reached the server. They must be in the `env` block of your client
+config; names are case-sensitive.
 
-### Rate Limiting
+**A provider returns an error**
+Check `errors` in the response. Auth failures, rate limits and timeouts are
+now reported explicitly rather than looking like an empty result set.
 
-Each provider has different rate limits:
-- **Pexels**: 200 requests per hour
-- **Unsplash**: 50 requests per hour (demo), 5000 per hour (production)
+**Pexels seems to accept an invalid key**
+It does. Pexels returns 200 for a malformed key, so a typo can look like it
+works. If results seem wrong, verify the key directly.
 
+### Rate limits
+
+| Provider | Limit | On exhaustion |
+|---|---|---|
+| Pexels | 200/hour (default, per key) | HTTP 429 |
+| Unsplash | 50/hour demo, 1000/hour production | HTTP **403** with `X-Ratelimit-Remaining: 0` |
+
+## 🤝 Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). For major
+changes, please open an issue first to discuss the approach.
+
+## 🙏 Acknowledgments
+
+- Thanks to [Pexels](https://www.pexels.com) and [Unsplash](https://unsplash.com) for their free APIs
+- Built with the [Model Context Protocol](https://github.com/modelcontextprotocol)
 
 ---
 
