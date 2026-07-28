@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import urlparse
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
@@ -70,7 +71,9 @@ async def test_unsplash_search_returns_live_results() -> None:
     for result in results:
         assert result.id.startswith("unsplash_")
         # Unsplash requires hotlinking its URLs rather than re-hosting.
-        assert "images.unsplash.com" in result.url
+        # Check the parsed host: a substring match would also accept
+        # something like https://evil.example/images.unsplash.com/x.
+        assert urlparse(result.url).netloc == "images.unsplash.com"
 
 
 @needs_unsplash

@@ -1,0 +1,22 @@
+---
+# Codacy configuration.
+#
+# Codacy runs Bandit across the whole repository and does not recognise
+# `tests/` as test code, so it reports every pytest assertion as
+# "assert used in non-test code". That produced several hundred false
+# positives on this repo and buried the real findings, so tests are excluded
+# from the security tooling below. They are still linted by ruff and
+# type-checked by mypy in CI.
+engines:
+  bandit:
+    exclude_paths:
+      - "tests/**"
+  pylint:
+    exclude_paths:
+      - "tests/**"
+
+exclude_paths:
+  - "docs/**"
+  - "examples/**"
+  - "images/**"
+  - "**/*.md"

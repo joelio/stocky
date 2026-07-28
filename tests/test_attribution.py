@@ -6,8 +6,16 @@ make correct attribution a condition of API access.
 
 from __future__ import annotations
 
+import re
+from urllib.parse import urlparse
+
 from stocky_mcp.attribution import add_utm, attribution_for
 from stocky_mcp.models import ImageResult
+
+
+def hrefs(html: str) -> list[str]:
+    """Extract href targets, so tests assert on links not raw text."""
+    return re.findall(r'href="([^"]+)"', html)
 
 
 def make_result(provider: str, **overrides: object) -> ImageResult:
@@ -94,8 +102,11 @@ def test_pexels_links_back_to_pexels_and_the_photo() -> None:
     attribution = attribution_for(make_result("pexels"))
 
     assert attribution["text"] == "Photo by Emma K on Pexels"
-    assert "https://pexels.com/photos/123" in attribution["html"]
-    assert "https://www.pexels.com" in attribution["html"]
+    # Compare parsed hosts rather than substrings: "https://www.pexels.com"
+    # appearing anywhere in the markup would not prove it is a real href.
+    hosts = {urlparse(href).netloc for href in hrefs(attribution["html"])}
+    assert "www.pexels.com" in hosts
+    assert "https://pexels.com/photos/123" in hrefs(attribution["html"])
 
 
 def test_pexels_does_not_add_utm_parameters() -> None:
