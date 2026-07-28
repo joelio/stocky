@@ -7,7 +7,7 @@ make correct attribution a condition of API access.
 from __future__ import annotations
 
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from stocky_mcp.attribution import add_utm, attribution_for
 from stocky_mcp.models import ImageResult
@@ -43,22 +43,24 @@ def make_result(provider: str, **overrides: object) -> ImageResult:
 
 
 def test_add_utm_appends_required_parameters() -> None:
-    result = add_utm("https://unsplash.com/@emmak")
+    query = parse_qs(urlparse(add_utm("https://unsplash.com/@emmak")).query)
 
-    assert "utm_source=stocky-mcp" in result
-    assert "utm_medium=referral" in result
+    assert query["utm_source"] == ["stocky-mcp"]
+    assert query["utm_medium"] == ["referral"]
 
 
 def test_add_utm_preserves_an_existing_query() -> None:
     """Unsplash URLs carry an ixid that must survive."""
-    result = add_utm("https://unsplash.com/photos/x?ixid=abc123")
+    query = parse_qs(urlparse(add_utm("https://unsplash.com/photos/x?ixid=abc123")).query)
 
-    assert "ixid=abc123" in result
-    assert "utm_medium=referral" in result
+    assert query["ixid"] == ["abc123"]
+    assert query["utm_medium"] == ["referral"]
 
 
 def test_add_utm_uses_the_supplied_app_name() -> None:
-    assert "utm_source=my-app" in add_utm("https://unsplash.com/", "my-app")
+    url = add_utm("https://unsplash.com/", "my-app")
+
+    assert parse_qs(urlparse(url).query)["utm_source"] == ["my-app"]
 
 
 def test_add_utm_ignores_an_empty_url() -> None:
@@ -82,9 +84,15 @@ def test_unsplash_credits_photographer_and_unsplash() -> None:
 def test_unsplash_links_carry_utm_parameters() -> None:
     attribution = attribution_for(make_result("unsplash"))
 
-    assert "utm_source=stocky-mcp" in attribution["photographer_url"]
-    assert "utm_source=stocky-mcp" in attribution["source_url"]
-    assert attribution["html"].count("utm_medium=referral") == 2
+    for url in (attribution["photographer_url"], attribution["source_url"]):
+        query = parse_qs(urlparse(url).query)
+        assert query["utm_source"] == ["stocky-mcp"]
+        assert query["utm_medium"] == ["referral"]
+
+    # Both links in the markup must carry the parameters, not just one.
+    assert len(hrefs(attribution["html"])) == 2
+    for href in hrefs(attribution["html"]):
+        assert parse_qs(urlparse(href).query)["utm_medium"] == ["referral"]
 
 
 def test_unsplash_handles_a_missing_photographer_url() -> None:
@@ -102,11 +110,14 @@ def test_pexels_links_back_to_pexels_and_the_photo() -> None:
     attribution = attribution_for(make_result("pexels"))
 
     assert attribution["text"] == "Photo by Emma K on Pexels"
-    # Compare parsed hosts rather than substrings: "https://www.pexels.com"
-    # appearing anywhere in the markup would not prove it is a real href.
-    hosts = {urlparse(href).netloc for href in hrefs(attribution["html"])}
-    assert "www.pexels.com" in hosts
-    assert "https://pexels.com/photos/123" in hrefs(attribution["html"])
+    # Assert the exact links. Substring checks against a URL are unreliable
+    # (and CodeQL rightly flags them): "www.pexels.com" appearing somewhere
+    # in the markup would not prove it is the href of a real link.
+    assert hrefs(attribution["html"]) == [
+        "https://pexels.com/photos/123",
+        "https://pexels.com/@emmak",
+        "https://www.pexels.com",
+    ]
 
 
 def test_pexels_does_not_add_utm_parameters() -> None:
