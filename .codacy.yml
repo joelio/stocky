@@ -1,19 +1,28 @@
 ---
 # Codacy configuration.
 #
-# Codacy runs Bandit across the whole repository and does not recognise
-# `tests/` as test code, so it reports every pytest assertion as
-# "assert used in non-test code". That produced several hundred false
-# positives on this repo and buried the real findings, so tests are excluded
-# from the security tooling below. They are still linted by ruff and
-# type-checked by mypy in CI.
+# Linting and typing are enforced in CI by ruff (with a large rule set) and
+# mypy. The exclusions here remove duplicate or incorrect reporting, not
+# coverage — see the reason against each.
 engines:
+  # Bandit does not recognise `tests/` as test code, so it reported every
+  # pytest assertion as "assert used in non-test code" — several hundred
+  # false positives that buried the real findings.
   bandit:
     exclude_paths:
       - "tests/**"
+
+  # Pylint does not model pytest fixtures, so it flags every test that takes
+  # a fixture as "redefining name from outer scope". ruff covers these files.
   pylint:
     exclude_paths:
       - "tests/**"
+
+  # This project uses Google-style docstrings, enforced by ruff's pydocstyle
+  # with convention = "google". Codacy's copy defaults to the numpy
+  # convention, so it reports the two styles' differences as errors.
+  pydocstyle:
+    enabled: false
 
 exclude_paths:
   - "docs/**"
