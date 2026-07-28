@@ -20,7 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v9
+      # setup-uv publishes no floating major tag above v7, so this is
+      # pinned to an exact release rather than a moving ref.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: "3.13"
           enable-cache: true
@@ -46,7 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v9
+      # setup-uv publishes no floating major tag above v7, so this is
+      # pinned to an exact release rather than a moving ref.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -73,7 +77,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v9
+      # setup-uv publishes no floating major tag above v7, so this is
+      # pinned to an exact release rather than a moving ref.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: "3.13"
           enable-cache: true
