@@ -1,0 +1,6 @@
+[pydocstyle]
+# This project uses Google-style docstrings, matching ruff's
+# [tool.ruff.lint.pydocstyle] convention = "google" setting. Without this,
+# pydocstyle defaults to the numpy convention and reports the differences
+# between the two styles (D213, D406, D407, D413) as errors.
+convention = google
