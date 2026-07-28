@@ -13,6 +13,21 @@ Stocky is an [MCP](https://modelcontextprotocol.io) server that lets an AI
 assistant search, inspect and download royalty-free stock photography from
 **Pexels** and **Unsplash**.
 
+> ### 🆕 Version 2.0 — already using Stocky? Read this
+>
+> **Your MCP client config keeps working.** If it points at `stocky_mcp.py`,
+> that file is still there and still starts the server. Nothing breaks on
+> upgrade.
+>
+> **But `pip install -r requirements.txt` will fail** — that file is gone, and
+> so is `setup.py`. From a source checkout, install with **`uv sync`** or
+> **`pip install -e .`** instead. See [Upgrading from 1.x](#upgrading)
+> for the two-minute version, or the [CHANGELOG](CHANGELOG.md) for everything.
+>
+> The headline changes: `pycurl` is gone (so no more C build errors),
+> searches actually run concurrently, failed providers now report *why*
+> instead of returning nothing, and Python 3.10+ is required.
+
 ## ✨ Features
 
 - 🔍 **Multi-provider search** — queries Pexels and Unsplash concurrently
@@ -106,6 +121,8 @@ working:
 Stocky reads its configuration from the environment its client starts it in.
 It does not load a `.env` file of its own, so keys must go in the `env` block
 above.
+
+<a id="configuration"></a>
 
 ## ⚙️ Configuration
 
@@ -211,6 +228,81 @@ block with ready-made `text` and `html` in the correct format for its provider.
 
 Read the full terms: [Pexels](https://www.pexels.com/api/documentation/) ·
 [Unsplash](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines)
+
+<a id="upgrading"></a>
+
+## ⬆️ Upgrading from 1.x
+
+Version 2.0 restructured the project. **Existing MCP client configurations keep
+working** — the root `stocky_mcp.py` is deliberately retained as a launcher —
+but installation changed, and a few behaviours are intentionally different.
+
+### What you need to do
+
+**If you run it via `uvx` or an installed console script**, nothing. Upgrade
+and carry on.
+
+**If you run it from a source checkout**, reinstall. `requirements.txt`,
+`setup.py` and `setup.cfg` were replaced by `pyproject.toml`:
+
+```bash
+git pull
+uv sync                     # or: pip install -e .
+```
+
+`pip install -r requirements.txt` now fails — the file no longer exists.
+
+**Check your Python version.** 2.0 requires **Python 3.10+**. The old
+`setup.py` claimed 3.8 support, but the `mcp` SDK has always required 3.10, so
+that claim was never actually satisfiable.
+
+**Consider switching to `uvx`.** It needs nothing installed and avoids the
+whole class of "which interpreter did my editor launch?" startup failures:
+
+```json
+{
+  "mcpServers": {
+    "stocky": {
+      "command": "uvx",
+      "args": ["stocky-mcp"],
+      "env": { "PEXELS_API_KEY": "your_pexels_key" }
+    }
+  }
+}
+```
+
+### What changed underneath
+
+| Change | Why it matters to you |
+|---|---|
+| `pycurl` → `httpx` | No C extension to compile, so no more build failures on install. `httpx` was already required by the `mcp` SDK, so this **removed** a dependency. |
+| Searches now run concurrently | The old code was `async` in name only — it made blocking calls inside `async def`. Searching both providers now costs roughly one provider's latency. |
+| Failed providers report why | Previously an invalid API key returned an empty list, identical to a search that genuinely matched nothing. |
+| `per_page` clamped per provider | Unsplash silently falls back to 10 above its maximum of 30, so asking for 50 used to return *fewer* images than asking for 30. |
+| Attribution generated for you | Both providers require it as a condition of API access. Set `ENABLE_ATTRIBUTION_LINKS=true` and every result carries ready-made text and HTML. |
+| New configuration options | Caching, timeouts, download size caps and a download root — see [Configuration](#configuration). |
+
+### The one thing that might affect your code
+
+**Only if you parse Stocky's responses programmatically.** A search that fails
+now returns an `errors` map naming the provider and the reason, where it used
+to return an empty result list:
+
+```jsonc
+{
+  "query": "mountains",
+  "results": { "pexels": [], "unsplash": [ /* ... */ ] },
+  "errors": { "pexels": "pexels rejected the API key (HTTP 401)..." }
+}
+```
+
+If you treated "empty" as "no matches", check for `errors` too — otherwise a
+broken key looks like a query with no results. This is the fix, not a
+regression, but it is a visible change.
+
+Nothing else in the tool surface changed: `search_stock_images`,
+`get_image_details` and `download_image` take the same arguments they always
+did, so existing prompts and workflows are unaffected.
 
 ## 🧑‍💻 Development
 

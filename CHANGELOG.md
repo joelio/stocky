@@ -7,66 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Security
-
-- Downloads now refuse any non-image file extension. A download path arrives
-  from a model-generated tool call, so without this the tool could be steered
-  into writing bytes to `~/Library/LaunchAgents/x.plist` or a `.py` on the
-  import path.
-- Image URLs taken from provider responses are validated before being fetched.
-  httpx ignores `base_url` for an absolute URL, so a hostile or compromised
-  response could otherwise point the fetch at `169.254.169.254` or localhost.
-  Private, loopback, link-local and non-HTTP URLs are refused.
-- Image bytes are fetched with a separate, unauthenticated client. The
-  provider client sends the API key on every request, and the image CDN is a
-  different origin that has no business seeing it.
-- Image fetches send `Accept-Encoding: identity`. The size cap was applied to
-  decompressed bytes, so a small gzipped body could expand well past it before
-  the limit was noticed.
-- `request_json` now streams against a size cap. It previously buffered the
-  whole body with no limit, so a ~200 KB compressed response could decode into
-  roughly a gigabyte of memory.
-- Provider-native image ids are validated before being interpolated into a URL
-  path. httpx normalises dot segments, so `unsplash_../../me` reached a
-  different authenticated endpoint on the provider's own API.
-- API keys are excluded from `repr(Config)`, and stripped from provider error
-  messages before they are logged or returned — some APIs echo the rejected
-  credential back.
-- Attribution HTML escapes photographer names and URLs, which are
-  user-supplied content on both providers.
-- Redirects are capped, and the root logger is pinned to stderr so a
-  third-party library cannot corrupt the JSON-RPC stream.
-- The PyPI publish action is pinned by commit rather than the mutable
-  `release/v1` branch, and `persist-credentials: false` is set on checkout.
-
-### Fixed
-
-- **Concurrent tool calls corrupted each other.** One provider instance was
-  shared for the manager's lifetime, and each operation opened and closed its
-  single HTTP client. The first call to finish closed the client out from
-  under the others, which failed with "must be used as an async context
-  manager" — and, for Unsplash, silently skipped the mandatory download
-  report. Provider instances are now created per operation.
-- Cached search payloads were copied shallowly, so a caller mutating a
-  returned result corrupted every later cache hit.
-- Cache keys were built by joining unescaped values, so a colour of
-  `red&orientation=landscape` collided with a genuine filtered search and
-  returned the wrong cached results. All segments are now percent-encoded.
-- A 200 response with an unexpected shape raised `KeyError` out of
-  `get_image_details` and `download_image` instead of returning an error.
-- `NaN` and `inf` in numeric environment variables crashed startup or silently
-  defeated the minimum-value guards, disabling the cache and the HTTP timeout.
-- Unsplash downloads fetched the photo twice — once for metadata and again for
-  the download-report URL — halving the usable budget on their 50-per-hour
-  demo tier. The location now travels on the result.
-- Saving an image to disk omitted the attribution block that the base64 path
-  included, despite saving being exactly what the licences call "taking" the
-  photo.
-- A zero-byte response was reported as a successful download.
-- `per_page` and `page` are normalised before caching and before being echoed,
-  so a cache hit no longer reports a different page than was requested.
-- An empty `providers` list is treated as "all configured" rather than an
-  error, and duplicate provider names no longer issue the same request twice.
+Nothing yet.
 
 ## [2.0.0] — 2026-07-28
 
@@ -93,7 +34,7 @@ working, but several behaviours are deliberately different — see *Changed*.
 - All image size variants are now carried on each result, including the Pexels
   variants that have no canonical equivalent (`large2x`, `portrait`,
   `landscape`).
-- A pytest suite of 204 tests at ~95% coverage, plus opt-in integration tests
+- A pytest suite of 241 tests at ~96% coverage, plus opt-in integration tests
   against the real APIs.
 - `CONTRIBUTING.md` and this changelog.
 
@@ -162,6 +103,38 @@ working, but several behaviours are deliberately different — see *Changed*.
 - The print-based `test_stocky.py` and `test_mcp_client.py` scripts, converted
   into the pytest suite and integration tests.
 - `setup.py`, `setup.cfg`, `requirements.txt`.
+
+### Security
+
+- Downloads now refuse any non-image file extension. A download path arrives
+  from a model-generated tool call, so without this the tool could be steered
+  into writing bytes to `~/Library/LaunchAgents/x.plist` or a `.py` on the
+  import path.
+- Image URLs taken from provider responses are validated before being fetched.
+  httpx ignores `base_url` for an absolute URL, so a hostile or compromised
+  response could otherwise point the fetch at `169.254.169.254` or localhost.
+  Private, loopback, link-local and non-HTTP URLs are refused.
+- Image bytes are fetched with a separate, unauthenticated client. The
+  provider client sends the API key on every request, and the image CDN is a
+  different origin that has no business seeing it.
+- Image fetches send `Accept-Encoding: identity`. The size cap was applied to
+  decompressed bytes, so a small gzipped body could expand well past it before
+  the limit was noticed.
+- `request_json` now streams against a size cap. It previously buffered the
+  whole body with no limit, so a ~200 KB compressed response could decode into
+  roughly a gigabyte of memory.
+- Provider-native image ids are validated before being interpolated into a URL
+  path. httpx normalises dot segments, so `unsplash_../../me` reached a
+  different authenticated endpoint on the provider's own API.
+- API keys are excluded from `repr(Config)`, and stripped from provider error
+  messages before they are logged or returned — some APIs echo the rejected
+  credential back.
+- Attribution HTML escapes photographer names and URLs, which are
+  user-supplied content on both providers.
+- Redirects are capped, and the root logger is pinned to stderr so a
+  third-party library cannot corrupt the JSON-RPC stream.
+- The PyPI publish action is pinned by commit rather than the mutable
+  `release/v1` branch, and `persist-credentials: false` is set on checkout.
 
 [Unreleased]: https://github.com/joelio/stocky/compare/v2.0.0...HEAD
 [2.0.0]: https://github.com/joelio/stocky/releases/tag/v2.0.0
