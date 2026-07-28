@@ -1,0 +1,48 @@
+name: Release
+
+# Publishing is deliberately manual: it only runs when a version tag is
+# pushed, or when triggered by hand.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv build
+      - run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # A protected environment means a human approves each publish.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/stocky-mcp
+    permissions:
+      # Required for Trusted Publishing. No API token is stored anywhere:
+      # PyPI verifies this workflow's OIDC identity instead. Configure the
+      # publisher once at https://pypi.org/manage/account/publishing/
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,21 +1,43 @@
 version: 2
+
 updates:
-  # Enable version updates for Python
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "python"
-    
-  # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "github-actions"
+      day: "monday"
+    # One batched PR per week rather than one per action.
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels: ["dependencies", "github-actions"]
+    open-pull-requests-limit: 5
+
+  # "uv" rather than "pip": the project has a uv.lock, and this ecosystem
+  # understands dependency groups so dev tooling is labelled separately.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      python-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      dev-dependencies:
+        dependency-type: "development"
+        patterns: ["*"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels: ["dependencies", "python"]
+    open-pull-requests-limit: 5
+    # Let a release settle before opening a PR for it.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
