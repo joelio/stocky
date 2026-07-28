@@ -118,7 +118,8 @@ class UnsplashProvider(StockImageProvider):
             params["order_by"] = sort
 
         orientation = kwargs.get("orientation")
-        orientation = ORIENTATION_ALIASES.get(orientation, orientation)
+        if orientation is not None:
+            orientation = ORIENTATION_ALIASES.get(orientation, orientation)
         if orientation in VALID_ORIENTATIONS:
             params["orientation"] = orientation
 

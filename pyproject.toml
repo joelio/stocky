@@ -107,7 +107,9 @@ extend-ignore = [
 "src/stocky_mcp/__init__.py" = ["F401"]
 # The compatibility shim deliberately mutates sys.path before importing.
 "stocky_mcp.py" = ["E402", "F401"]
-"tests/**/*.py" = ["S101"]
+# Tests may use plain pathlib in async bodies; the blocking cost is
+# irrelevant and anyio.Path would only obscure the assertion.
+"tests/**/*.py" = ["S101", "ASYNC230", "ASYNC240"]
 "demo.py" = ["T20"]
 
 [tool.ruff.lint.isort]

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Mapping
+from collections.abc import Mapping
+from types import TracebackType
+from typing import Any, TypeVar
 
 import httpx
 
@@ -18,6 +20,11 @@ from ..errors import (
 from ..models import ImageResult
 
 logger = logging.getLogger(__name__)
+
+#: Lets __aenter__ return the concrete subclass rather than the base type.
+#: typing.Self would be tidier but only exists from Python 3.11, and this
+#: package supports 3.10 without taking a typing_extensions dependency.
+ProviderT = TypeVar("ProviderT", bound="StockImageProvider")
 
 
 class StockImageProvider(ABC):
@@ -81,7 +88,7 @@ class StockImageProvider(ABC):
         headers.update(self.auth_headers())
         return headers
 
-    async def __aenter__(self) -> "StockImageProvider":
+    async def __aenter__(self: ProviderT) -> ProviderT:  # noqa: PYI019
         """Open the HTTP client."""
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -92,7 +99,12 @@ class StockImageProvider(ABC):
         )
         return self
 
-    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         """Close the HTTP client."""
         if self._client is not None:
             await self._client.aclose()
@@ -152,8 +164,7 @@ class StockImageProvider(ABC):
         if not isinstance(data, dict):
             raise ProviderError(
                 self.name,
-                f"{self.name} returned unexpected JSON of type "
-                f"{type(data).__name__}",
+                f"{self.name} returned unexpected JSON of type {type(data).__name__}",
             )
         return data
 
@@ -234,4 +245,4 @@ class StockImageProvider(ABC):
     def strip_prefix(self, image_id: str) -> str:
         """Remove our ``<provider>_`` prefix from an id, if present."""
         prefix = f"{self.name}_"
-        return image_id[len(prefix):] if image_id.startswith(prefix) else image_id
+        return image_id.removeprefix(prefix)

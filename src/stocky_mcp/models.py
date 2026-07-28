@@ -66,7 +66,7 @@ class ImageResult:
         for candidate in reversed(SIZE_NAMES[:index]):
             if candidate in self.sizes:
                 return self.sizes[candidate]
-        for candidate in SIZE_NAMES[index + 1:]:
+        for candidate in SIZE_NAMES[index + 1 :]:
             if candidate in self.sizes:
                 return self.sizes[candidate]
         return self.url or None
