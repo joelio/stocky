@@ -61,6 +61,6 @@ than a useful error.
 
 ## Environment variables
 
-See the configuration table in the [main README](../README.md#️-configuration).
+See the configuration table in the [main README](../README.md#configuration).
 `STOCKY_DOWNLOAD_ROOT` is worth setting — download paths come from
 model-generated tool calls, and it confines writes to one directory.
