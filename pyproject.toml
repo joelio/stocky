@@ -58,7 +58,7 @@ test = [
 lint = [
     # Ruff ships default-rule and style changes in minor releases, so the
     # upper bound keeps CI from breaking on an unrelated upgrade.
-    "ruff>=0.8,<0.17",
+    "ruff>=0.16.1,<0.17",
 ]
 typing = ["mypy>=1.13"]
 dev = [
