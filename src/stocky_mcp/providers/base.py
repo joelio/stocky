@@ -95,8 +95,11 @@ class StockImageProvider(ABC):
         raise NotImplementedError
 
     def _headers(self) -> dict[str, str]:
-        # Pexels' edge returns 403 for requests without a User-Agent, so this
-        # is set for every provider rather than relying on httpx's default.
+        # Set for every provider rather than relying on httpx's default:
+        # Pexels' Cloudflare edge bans some client User-Agents outright,
+        # returning 403 with `error code: 1010`. A missing User-Agent is
+        # served fine — the risk is inheriting a banned default, as the
+        # pre-2.0 pycurl code did. See CHANGELOG 2.0.0.
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
         headers.update(self.auth_headers())
         return headers

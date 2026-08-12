@@ -80,6 +80,16 @@ working, but several behaviours are deliberately different — see *Changed*.
 - `PexelsProvider.search` never set `attribution_url`, while `get_details`
   did — the same image had different attribution depending on how it was
   fetched.
+- **Every Pexels request failed with `Failed to download image: HTTP status
+  403`.** pycurl sets its own default `User-Agent` of `PycURL/<version>
+  libcurl/<version> ...`, and Pexels' Cloudflare edge bans it, answering with
+  403 and `error code: 1010`. This affected both `images.pexels.com` and
+  `api.pexels.com`, so Pexels searches were failing too — and because 1.x
+  returned an empty list on provider failure, that looked like "no results"
+  rather than an error. Requests now send `User-Agent: stocky-mcp`
+  (`STOCKY_USER_AGENT` to override) and are served normally. Note that a
+  *missing* User-Agent was never the problem: Pexels serves those fine. The
+  problem was inheriting a banned default.
 - `download_image` reconstructed the Pexels original by string-replacing
   `?h=650&w=940` out of a URL, which broke whenever Pexels changed its URL
   format. It now uses the real `src.original`.

@@ -550,6 +550,9 @@ class StockImageManager:
             follow_redirects=True,
             max_redirects=5,
             headers={
+                # Not optional: the image CDN sits behind the same edge as the
+                # API, which bans some client default User-Agents. This is the
+                # request that used to 403 on every Pexels image before 2.0.
                 "User-Agent": self.config.user_agent,
                 # Images are already compressed, so there is nothing to gain
                 # from an encoded response — and accepting one would let a

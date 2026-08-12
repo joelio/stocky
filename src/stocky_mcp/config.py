@@ -90,8 +90,9 @@ class Config:
         max_download_bytes: Refuse downloads larger than this, to avoid
             pulling an unbounded response into memory.
         log_level: Logging level name applied to the ``stocky_mcp`` logger.
-        user_agent: User-Agent sent to providers. Pexels' edge rejects
-            requests without one.
+        user_agent: User-Agent sent to providers. Pexels' Cloudflare edge
+            bans some HTTP client defaults outright, so an explicit value is
+            always sent rather than inheriting the client's own.
     """
 
     pexels_api_key: str | None = field(default=None, repr=False)

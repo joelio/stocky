@@ -276,6 +276,7 @@ whole class of "which interpreter did my editor launch?" startup failures:
 | Change | Why it matters to you |
 |---|---|
 | `pycurl` → `httpx` | No C extension to compile, so no more build failures on install. `httpx` was already required by the `mcp` SDK, so this **removed** a dependency. |
+| **Pexels works again** | pycurl's default `User-Agent` is banned by Pexels' Cloudflare edge, so on 1.x every Pexels request got a 403 — downloads failed outright and searches silently returned nothing. See [Pexels returns 403 on 1.x](#pexels-403). |
 | Searches now run concurrently | The old code was `async` in name only — it made blocking calls inside `async def`. Searching both providers now costs roughly one provider's latency. |
 | Failed providers report why | Previously an invalid API key returned an empty list, identical to a search that genuinely matched nothing. |
 | `per_page` clamped per provider | Unsplash silently falls back to 10 above its maximum of 30, so asking for 50 used to return *fewer* images than asking for 30. |
@@ -349,6 +350,34 @@ now reported explicitly rather than looking like an empty result set.
 **Pexels seems to accept an invalid key**
 It does. Pexels returns 200 for a malformed key, so a typo can look like it
 works. If results seem wrong, verify the key directly.
+
+<a id="pexels-403"></a>
+
+**`Failed to download image: HTTP status 403` — every Pexels image**
+You are on 1.x. **Upgrade to 2.0** — see [Upgrading from 1.x](#upgrading).
+There is no configuration that fixes this on 1.x.
+
+The wording identifies the version: 1.x said `HTTP status 403`, 2.0 says
+`HTTP 403`. The cause is that 1.x used pycurl, which sets its own default
+`User-Agent` of `PycURL/<version> libcurl/<version> ...`, and Pexels' Cloudflare
+edge bans that string — replying 403 with a body of `error code: 1010`. You can
+see it for yourself:
+
+```bash
+IMG="https://images.pexels.com/photos/844297/pexels-photo-844297.jpeg"
+curl -s -o /dev/null -w '%{http_code}\n' -A "PycURL/7.47.0 libcurl/8.20.0" "$IMG"  # 403
+curl -s -o /dev/null -w '%{http_code}\n' -A "stocky-mcp"                    "$IMG"  # 200
+```
+
+A *missing* User-Agent is served fine, so this is not the usual "you forgot a
+header" advice — the problem is inheriting a banned default. The ban applies to
+`api.pexels.com` as well, so on 1.x Pexels searches were failing too; 1.x
+reported provider failures as an empty result list, so it looked like Pexels
+simply had no matches. If 1.x searches only ever seemed to return Unsplash
+photos, this is why.
+
+2.0 sends `User-Agent: stocky-mcp`, overridable with `STOCKY_USER_AGENT`. If you
+ever need to change it, avoid starting the value with a client library's name.
 
 ### Rate limits
 
